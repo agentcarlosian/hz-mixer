@@ -1,0 +1,17 @@
+name: Feature request
+description: Propose a focused improvement to the offline audio mixer.
+title: "[Feature] "
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow or problem
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change and alternatives
+      description: Keep the single-file, local-only listening experience in mind. This project does not promise clinical effects or specific mental states.
+    validations:
+      required: true

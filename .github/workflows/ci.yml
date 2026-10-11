@@ -1,0 +1,53 @@
+name: Validate Hz Mixer
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24.13.0'
+          package-manager-cache: false
+      - name: Install locked development tools
+        run: npm ci --ignore-scripts --no-fund
+      - name: Check, build, test and prepare candidate
+        run: npm run release:prepare
+      - name: Install isolated Firefox
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps firefox
+      - name: Browser regression checks
+        if: runner.os == 'Linux'
+        run: npm run test:browser
+      - name: Verify final candidate
+        run: npm run release:verify
+      - name: Store candidate artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: hz-mixer-candidate-${{ matrix.os }}
+          path: |
+            dist/hz-mixer-*.zip
+            dist/Hz Mixer.html
+            dist/release-manifest.json
+            dist/SHA256SUMS.txt
+            dist/RELEASE_NOTES.md
+          if-no-files-found: error
+          retention-days: 14

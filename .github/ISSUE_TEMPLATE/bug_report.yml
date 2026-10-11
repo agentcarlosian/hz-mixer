@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible Hz Mixer problem.
+title: "[Bug] "
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release version or source commit.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and operating system
+    validations:
+      required: true
+  - type: dropdown
+    id: launch
+    attributes:
+      label: Launch method
+      options:
+        - Portable HTML opened from disk
+        - Source preview over loopback HTTP
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps, expected result and actual result
+      description: Include the selected method/program and a minimal sequence of actions. Do not include personal listening data, health information, secrets or private file paths.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Optional evidence
+      description: Screenshots or concise console errors using synthetic settings. Redact private information.

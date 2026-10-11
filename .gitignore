@@ -1,0 +1,10 @@
+output/
+dist/
+node_modules/
+Hz Mixer.html
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
