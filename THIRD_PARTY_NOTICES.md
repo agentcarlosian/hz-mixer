@@ -1,6 +1,6 @@
 # Third-party Notices
 
-Hz Mixer's original-source licence is selected separately. These bundled assets keep their own terms; an original-source licence does not replace them.
+Hz Mixer's original source uses the root MIT licence. These bundled assets keep their own terms; the root licence does not replace them.
 
 ## Field Recordings
 

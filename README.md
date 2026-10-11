@@ -75,4 +75,4 @@ Local automated checks cover source syntax, audio/state behavior, embedded asset
 
 ## Licensing
 
-Original-source licensing is being selected before release. Packaging refuses an unlicensed release candidate. The bundled recordings remain CC0 and Lucide icons retain their original notices. See [third-party notices](THIRD_PARTY_NOTICES.md) and the credits embedded in the portable app.
+Original source is licensed under the [MIT License](LICENSE). The bundled recordings remain CC0 and Lucide icons retain their original notices; MIT does not replace those asset terms. See [third-party notices](THIRD_PARTY_NOTICES.md) and the credits embedded in the portable app.
