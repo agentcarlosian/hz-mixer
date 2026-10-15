@@ -5,6 +5,7 @@ import { programAt, sessionSeconds, signalError } from './program.mjs';
 import { makeBackup, makeMixFile, parseBackup, mergeImports } from './library.mjs';
 import { renderWav, wavError, exportSeconds } from './wav-export.mjs';
 import { renderMp3, mp3Error } from './mp3-export.mjs';
+import { MatrixRain } from './matrix-rain.mjs';
 
 const $ = (selector) => document.querySelector(selector);
 $('#privacy-open').addEventListener('click', () => $('#privacy-dialog').showModal());
@@ -12,6 +13,7 @@ $('#privacy-open').addEventListener('click', () => $('#privacy-dialog').showModa
 const CURRENT_KEY = 'beat-mixer.current.v1';
 const LIBRARY_KEY = 'beat-mixer.library.v1';
 const THEME_KEY = 'hz-mixer.theme.v2';
+const MATRIX_MOTION_KEY = 'hz-mixer.matrix-motion.v1';
 const FAVORITES_KEY = 'beat-mixer.favorites.v1';
 const allLayers = [...SOUNDS, ...NOISES];
 const layerConfig = (id) => mix.sounds[id] || mix.noise[id];
@@ -30,6 +32,13 @@ let view = restored?.view === 'spectrum' ? 'spectrum' : 'waveform';
 let themePreference = document.documentElement.dataset.themePreference || 'system';
 const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
 let canvasTheme = {};
+const matrixRain = new MatrixRain($('#matrix-rain'), ({ active, paused, reduced, supported }) => {
+  const button = $('#matrix-motion');
+  button.hidden = !active; button.disabled = reduced || !supported;
+  button.title = button.ariaLabel = !supported ? 'Matrix rain unavailable' : reduced ? 'Matrix rain disabled by reduced motion' : paused ? 'Resume matrix rain' : 'Pause matrix rain';
+  button.querySelector('img').src = iconUrl(paused || reduced ? 'play' : 'pause');
+});
+matrixRain.setPaused(readStorage(MATRIX_MOTION_KEY) === true);
 let favorites = new Set(Array.isArray(readStorage(FAVORITES_KEY)) ? readStorage(FAVORITES_KEY).filter((id) => PRESETS.some((p) => 'preset:' + p.id === id)) : []);
 let sessionState = 'Ready';
 let busy = false;
@@ -62,8 +71,14 @@ function applyTheme() {
   const styles = getComputedStyle(document.documentElement);
   canvasTheme = Object.fromEntries(['grid', 'wave', 'spectrum', 'peak', 'program', 'marker'].map((name) => [name, styles.getPropertyValue('--canvas-' + name).trim()]));
   $('#theme-mode').value = themePreference;
+  matrixRain.setActive(document.documentElement.dataset.theme === 'matrix');
   drawProgram();
 }
+$('#matrix-motion').addEventListener('click', () => {
+  matrixRain.setPaused(!matrixRain.paused);
+  try { localStorage.setItem(MATRIX_MOTION_KEY, JSON.stringify(matrixRain.paused)); }
+  catch { notify('Motion changed; browser storage unavailable'); }
+});
 $('#theme-mode').addEventListener('change', () => {
   themePreference = $('#theme-mode').value;
   applyTheme();

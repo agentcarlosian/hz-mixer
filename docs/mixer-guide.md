@@ -29,7 +29,9 @@ Storage belongs to the browser and origin/file location. Export a Library backup
 
 ## Appearance
 
-Choose System, Light, Green, Dark, Cyberpunk or Matrix in the header. Green retains the original dark-green palette. Dark uses a near-black background and purple shades; Cyberpunk uses cyan/yellow/magenta accents; Matrix uses black/green and terminal typography. Monitor colors follow each palette. None adds flashing or animated background effects.
+Choose System, Light, Green, Dark, Blue or Matrix in the header. Green retains the original dark-green palette. Dark uses a near-black background and purple shades; Blue is the renamed cyan/yellow/magenta palette; Matrix uses black/green, terminal typography and falling background code. Monitor colors follow each palette. There are no strobes or beat-synchronized light effects.
+
+The Matrix-only pause/resume icon freezes or resumes the rain; its preference is stored separately from audio. Reduced-motion preferences disable the rain, and animation stops in hidden tabs or other themes. The rain is decorative, ignores pointer input and has no connection to the audio clock. Saved Cyberpunk selections reopen as Blue without changing the palette.
 
 System follows the device's light/dark preference and uses the new Dark palette at night. A saved selection of the old Dark theme migrates to Green, preserving that explicit choice. Theme preferences use a separate versioned key and do not change audio, saved mixes or JSON backups. Pink/brown noise icons retain their identifying colors in every theme.
 

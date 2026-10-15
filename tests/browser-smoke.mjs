@@ -34,6 +34,7 @@ try {
     const constant = AudioContext.prototype.createConstantSource;
     AudioContext.prototype.createConstantSource = function () { const node = constant.call(this); window.__qa?.controls.push(node); return node; };
   });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto(previewUrl, { waitUntil: 'networkidle' });
   assert(!requests.some((url) => url.endsWith('.mp3') || url.includes('lamejs.iife')), 'audio and encoder load lazily');
   assert(await page.locator('meta[name="application-version"]').getAttribute('content') !== 'development');
@@ -54,6 +55,7 @@ try {
   await page.locator('input[name="program"][value="sweep"]').check();
   const audioBeforeThemes = await page.evaluate(() => localStorage.getItem('beat-mixer.current.v1'));
   const themeColors = { light: 'rgb(245, 247, 246)', green: 'rgb(23, 27, 26)', dark: 'rgb(8, 8, 11)', cyberpunk: 'rgb(9, 10, 14)', matrix: 'rgb(3, 7, 5)' };
+  assert.equal(await page.locator('#theme-mode option[value="cyberpunk"]').textContent(), 'Blue');
   for (const [theme, background] of Object.entries(themeColors)) {
     await page.locator('#theme-mode').selectOption(theme);
     assert.equal(await page.locator('html').getAttribute('data-theme'), theme);
@@ -102,6 +104,46 @@ try {
     await page.reload(); assert.equal(await page.locator('#theme-mode').inputValue(), theme);
     assert.equal(await page.locator('#status').textContent(), 'Ready');
   }
+  const rainFrame = () => {
+    const canvas = document.querySelector('#matrix-rain');
+    if (canvas.hidden || !canvas.width || !canvas.height) return { hash: 0, pixels: 0 };
+    const data = canvas.getContext('2d').getImageData(0, 0, Math.min(canvas.width, 480), Math.min(canvas.height, 600)).data;
+    let hash = 2166136261, pixels = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3]) pixels++;
+      if (i % 64 === 0) hash = Math.imul(hash ^ data[i] ^ data[i + 1] << 8 ^ data[i + 2] << 16 ^ data[i + 3] << 24, 16777619) >>> 0;
+    }
+    return { hash, pixels };
+  };
+  assert.equal(await page.locator('#matrix-rain').getAttribute('aria-hidden'), 'true');
+  assert.equal(await page.locator('#matrix-rain').evaluate((canvas) => getComputedStyle(canvas).pointerEvents), 'none');
+  const rainStart = await page.evaluate(rainFrame); assert(rainStart.pixels > 100, 'Matrix rain is nonblank');
+  await page.waitForFunction(({ previous }) => {
+    const canvas = document.querySelector('#matrix-rain'), data = canvas.getContext('2d').getImageData(0, 0, Math.min(canvas.width, 480), Math.min(canvas.height, 600)).data;
+    let hash = 2166136261;
+    for (let i = 0; i < data.length; i += 64) hash = Math.imul(hash ^ data[i] ^ data[i + 1] << 8 ^ data[i + 2] << 16 ^ data[i + 3] << 24, 16777619) >>> 0;
+    return hash !== previous;
+  }, { previous: rainStart.hash });
+  await page.getByRole('button', { name: 'Pause matrix rain', exact: true }).click();
+  const frozen = await page.evaluate(rainFrame);
+  await page.evaluate(() => new Promise((resolve) => { let frames = 0; const tick = () => ++frames === 8 ? resolve() : requestAnimationFrame(tick); requestAnimationFrame(tick); }));
+  assert.deepEqual(await page.evaluate(rainFrame), frozen, 'pause freezes the rain');
+  await page.reload();
+  assert(await page.getByRole('button', { name: 'Resume matrix rain', exact: true }).isVisible(), 'rain pause persists');
+  await page.locator('#theme-mode').selectOption('cyberpunk'); await page.locator('#theme-mode').selectOption('matrix');
+  assert((await page.evaluate(rainFrame)).pixels > 100, 'returning to paused Matrix restores a static rain frame');
+  await page.getByRole('button', { name: 'Resume matrix rain', exact: true }).click();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForFunction(() => document.querySelector('#matrix-rain').hidden);
+  assert(await page.locator('#matrix-motion').isDisabled());
+  await page.locator('#theme-mode').selectOption('cyberpunk');
+  assert(await page.locator('#matrix-rain').isHidden()); assert(await page.locator('#matrix-motion').isHidden());
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.locator('#theme-mode').selectOption('matrix');
+  await page.waitForFunction(() => !document.querySelector('#matrix-rain').hidden);
+  evidence.matrixRain = { initialPixels: rainStart.pixels, animated: true, pausePersists: true, reducedMotionDisables: true, offThemeHidden: true };
+  await page.locator('.topbar').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: fileURLToPath(new URL('matrix-rain-desktop.png', root)), fullPage: false });
   assert.equal(await page.evaluate(() => localStorage.getItem('beat-mixer.current.v1')), audioBeforeThemes, 'themes must not change audio settings');
   await page.locator('#theme-mode').selectOption('system');
   await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');

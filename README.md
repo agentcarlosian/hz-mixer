@@ -18,7 +18,7 @@ Once published, open the website in a modern browser and press Play. Recordings 
 - Fixed rates, linear/smooth sweeps, once/hold or ping-pong, and up to 16 hold/sweep session stages.
 - Four field recordings plus white, pink and brown noise; independent level, mute, solo and balance.
 - Fade-in/out, crossfaded recording loops, and isochronic width, softness and depth.
-- Light, Green, black/purple Dark, Cyberpunk and Matrix themes, plus System; waveform/spectrum monitor, session progress and digital RMS meter.
+- Light, Green, black/purple Dark, Blue and Matrix themes, plus System; waveform/spectrum monitor, session progress and digital RMS meter. Matrix includes pausable code rain that respects reduced motion.
 - Up to 30 named mixes and JSON mix/library backup with previewed import.
 - Stereo WAV (16-bit PCM) and MP3 (128/192/256/320 kbps), at 44.1 or 48 kHz, with progress/cancellation and optional direct-to-file saving.
 
@@ -26,7 +26,7 @@ The [mixer guide](docs/mixer-guide.md) explains controls, frequency programs and
 
 ## Local Data and Privacy
 
-Mixing, rendering, encoding and JSON import run in your browser. Hz Mixer does not upload settings, imported JSON or exported audio. Current settings, saved mixes, favorites and theme use local browser storage. Clearing site data removes them. Use a library backup to transfer between browsers, the old Beat Mixer file, the website and the portable app; their storage is separate.
+Mixing, rendering, encoding and JSON import run in your browser. Hz Mixer does not upload settings, imported JSON or exported audio. Current settings, saved mixes, favorites, theme and Matrix rain pause state use local browser storage. Clearing site data removes them. Use a library backup to transfer mixes between browsers, the old Beat Mixer file, the website and the portable app; their storage is separate. Theme and motion preferences are not part of mix backups.
 
 The website requests static files from its host. GitHub Pages records visitor IP addresses for security. There is no service worker or promise that the website works offline after a visit. See the [privacy details](docs/privacy.md).
 

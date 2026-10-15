@@ -4,7 +4,7 @@ import { SOUNDS, NOISES } from '../src/mix-state.mjs';
 export const root = new URL('../', import.meta.url);
 export const read = async (path) => (await readFile(new URL(path, root), 'utf8')).replaceAll('\r\n', '\n');
 export const metadata = JSON.parse(await read('package.json'));
-export const modulePaths = ['src/mix-state.mjs', 'src/program.mjs', 'src/library.mjs', 'src/audio-graph.mjs', 'src/audio-engine.js', 'src/wav-export.mjs', 'src/mp3-export.mjs', 'src/app.js'];
+export const modulePaths = ['src/mix-state.mjs', 'src/program.mjs', 'src/library.mjs', 'src/audio-graph.mjs', 'src/audio-engine.js', 'src/wav-export.mjs', 'src/mp3-export.mjs', 'src/matrix-rain.mjs', 'src/app.js'];
 export const iconNames = [...new Set(['mixer-waves', 'save', 'trash', 'rotate-ccw', 'star', 'download', 'upload', 'play', 'pause', 'square', 'volume-2', 'volume-x', 'headphones', 'plus', 'arrow-up', 'arrow-down', ...SOUNDS.map((s) => s.icon), ...NOISES.map((s) => s.icon)])].sort();
 export const vendorFiles = ['lamejs.iife.js', 'LICENSE', 'COPYING', 'COPYING.LESSER', 'source.tar.gz', 'README.md'].map((name) => 'vendor/lamejs/' + name);
 export const escapeHtml = (text) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');

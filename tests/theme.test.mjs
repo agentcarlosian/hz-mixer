@@ -42,6 +42,8 @@ test('theme choices and browser chrome colors agree with the pre-paint registry'
   const colors = { light: '#f5f7f6', green: '#171b1a', dark: '#08080b', cyberpunk: '#090a0e', matrix: '#030705' };
   const selector = html.match(/<select id="theme-mode">([\s\S]*?)<\/select>/)[1];
   assert.deepEqual([...selector.matchAll(/value="([^"]+)"/g)].map((match) => match[1]), ['system', 'light', 'green', 'dark', 'cyberpunk', 'matrix']);
+  assert(selector.includes('<option value="cyberpunk">Blue</option>'), 'Blue keeps the existing stored theme ID');
+  assert(!selector.includes('>Cyberpunk<'));
   for (const [theme, color] of Object.entries(colors)) assert.equal(boot(JSON.stringify(theme), false).color, color);
 });
 

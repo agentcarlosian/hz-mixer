@@ -37,10 +37,11 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <canvas id="matrix-rain" aria-hidden="true" hidden></canvas>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand"><span class="brand-mark"><img src="./assets/icons/mixer-waves.svg" alt="" /></span><h1>Hz Mixer</h1></div>
-      <div class="topbar-actions"><span class="local-tag"><i></i> Local session</span><label class="theme-field" for="theme-mode"><span>Theme</span><select id="theme-mode"><option value="system">System</option><option value="light">Light</option><option value="green">Green</option><option value="dark">Dark</option><option value="cyberpunk">Cyberpunk</option><option value="matrix">Matrix</option></select></label></div>
+      <div class="topbar-actions"><span class="local-tag"><i></i> Local session</span><button id="matrix-motion" class="icon-button" aria-label="Pause matrix rain" title="Pause matrix rain" hidden><img src="./assets/icons/pause.svg" alt="" /></button><label class="theme-field" for="theme-mode"><span>Theme</span><select id="theme-mode"><option value="system">System</option><option value="light">Light</option><option value="green">Green</option><option value="dark">Dark</option><option value="cyberpunk">Blue</option><option value="matrix">Matrix</option></select></label></div>
     </header>
     <main>
       <section class="library-bar" aria-label="Mix library">

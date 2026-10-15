@@ -103,6 +103,10 @@ test('the standalone uses Hz Mixer branding, version metadata and legacy storage
   assert.equal(script('theme-bootstrap'), original.match(/<script id="theme-bootstrap">([\s\S]*?)<\/script>/)[1]);
   assert(html.includes('hz-mixer.theme.v2'));
   for (const name of ['system', 'light', 'green', 'dark', 'cyberpunk', 'matrix']) assert(html.includes('<option value="' + name + '">'));
+  assert(html.includes('<option value="cyberpunk">Blue</option>'));
+  assert(html.includes('id="matrix-rain" aria-hidden="true"'));
+  assert(html.includes('id="matrix-motion"'));
+  assert(html.includes('class MatrixRain'));
   assert(!html.includes('Beat Mixer'));
   for (const key of ['current', 'library', 'theme', 'favorites']) assert(html.includes('beat-mixer.' + key + '.v1'));
 });
