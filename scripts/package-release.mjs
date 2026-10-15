@@ -1,12 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { createReleaseArchive, checksums, normalizeText } from './release-lib.mjs';
+import { createReleaseArchive, checksums, normalizeText, releaseEntries } from './release-lib.mjs';
 
 const root = new URL('../', import.meta.url);
 const metadata = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
-const sources = { 'Hz Mixer.html': 'Hz Mixer.html', 'README.txt': 'docs/release-readme.txt', LICENSE: 'LICENSE', 'THIRD_PARTY_NOTICES.md': 'THIRD_PARTY_NOTICES.md', 'AUDIO_SOURCES.md': 'assets/audio/SOURCES.md', 'ICON_LICENSE.txt': 'assets/icons/LICENSE' };
 if (metadata.license === 'UNLICENSED') throw new Error('Original source licence selection is pending. No release archive was created.');
-const entries = {};
-for (const [name, path] of Object.entries(sources)) entries[name] = Buffer.from(normalizeText(await readFile(new URL(path, root), 'utf8')));
+const entries = await releaseEntries(root);
 const { zip, manifest } = createReleaseArchive(entries, metadata.version, metadata.license);
 const archiveName = 'hz-mixer-' + metadata.version + '.zip';
 const notes = Buffer.from(normalizeText(await readFile(new URL('docs/releases/v' + metadata.version + '.md', root), 'utf8')));

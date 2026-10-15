@@ -52,16 +52,25 @@ test('the bundled classic script compiles without module loading or network APIs
   assert(!/\b(?:fetch|XMLHttpRequest|WebSocket)\s*\(/.test(code));
   assert(!code.includes('./assets/'));
   assert.doesNotThrow(() => new Script(code));
+  assert.doesNotThrow(() => new Script(script('mp3-encoder')));
   assert.doesNotThrow(() => new Script(script('theme-bootstrap')));
   assert(html.includes('id="theme-mode"'));
 });
 
 test('recording credits and full icon licence notices travel inside the file', async () => {
   const escape = (value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-  for (const path of ['assets/audio/SOURCES.md', 'assets/icons/LICENSE']) {
+  for (const path of ['assets/audio/SOURCES.md', 'assets/icons/LICENSE', 'vendor/lamejs/COPYING', 'vendor/lamejs/COPYING.LESSER', 'vendor/lamejs/README.md']) {
     assert(html.includes(escape((await readFile(new URL(path, root), 'utf8')).replaceAll('\r\n', '\n'))));
   }
   assert(html.includes('id="credits-dialog"'));
+});
+
+test('the replaceable encoder and its downloadable source are embedded byte-exact', async () => {
+  assert.equal(script('mp3-encoder'), await readFile(new URL('vendor/lamejs/lamejs.iife.js', root), 'utf8'));
+  const source = html.match(/download="lamejs-1.2.7-source.tar.gz" href="data:application\/gzip;base64,([^"]+)"/);
+  assert(source);
+  assert.deepEqual(Buffer.from(source[1], 'base64'), await readFile(new URL('vendor/lamejs/source.tar.gz', root)));
+  for (const id of ['export-format', 'export-bitrate', 'privacy-dialog']) assert(html.includes('id="' + id + '"'));
 });
 
 test('the standalone controls expose the new precision and carrier limits', () => {
@@ -92,4 +101,18 @@ test('the standalone uses Hz Mixer branding, version metadata and legacy storage
   assert(html.includes('<meta name="application-version" content="' + metadata.version + '" />'));
   assert(!html.includes('Beat Mixer'));
   for (const key of ['current', 'library', 'theme', 'favorites']) assert(html.includes('beat-mixer.' + key + '.v1'));
+});
+
+test('the simplified header and monitor-first organization survive packaging', () => {
+  assert(!html.includes('Audio studio'));
+  assert(!html.includes('>Rhythm<'));
+  assert(!/0[123] \/ (?:Generator|Field recordings|Monitor)/.test(html));
+  assert(html.includes('<h2 id="generator-heading">Generator</h2>'));
+  assert(html.includes('<h2 id="monitor-heading">Monitor</h2>'));
+  assert(html.indexOf('class="transport-bar"') < html.indexOf('class="output-panel"'));
+  assert(html.indexOf('class="output-panel"') < html.indexOf('class="workspace"'));
+  const icons = JSON.parse(script('embedded-icons'));
+  for (const name of ['mixer-waves', ...SOUNDS.map((sound) => sound.icon)]) assert(icons[name]);
+  assert(html.includes('<link rel="icon" href="' + icons['mixer-waves'] + '" />'));
+  assert.equal(new Set(SOUNDS.map((sound) => sound.icon)).size, SOUNDS.length);
 });

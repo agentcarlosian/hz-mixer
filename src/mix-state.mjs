@@ -1,8 +1,8 @@
 export const SOUNDS = [
-  { id: 'cascade', name: 'Waterfall', detail: 'Small cascade', duration: '0:29', channels: 'Mono', icon: 'waves-horizontal', color: 'blue' },
-  { id: 'stream', name: 'Stream', detail: 'Mountain water', duration: '1:45', channels: 'Stereo', icon: 'waves-horizontal', color: 'teal' },
-  { id: 'storm', name: 'Thunderstorm', detail: 'Rain and thunder', duration: '2:38', channels: 'Stereo', icon: 'cloud-rain', color: 'violet' },
-  { id: 'waves', name: 'Sea waves', detail: 'Atlantic shore', duration: '2:47', channels: 'Stereo', icon: 'waves-horizontal', color: 'coral' },
+  { id: 'cascade', name: 'Waterfall', detail: 'Small cascade', duration: '0:29', channels: 'Mono', icon: 'waterfall', color: 'blue' },
+  { id: 'stream', name: 'Stream', detail: 'Mountain water', duration: '1:45', channels: 'Stereo', icon: 'stream-flow', color: 'teal' },
+  { id: 'storm', name: 'Thunderstorm', detail: 'Rain and thunder', duration: '2:38', channels: 'Stereo', icon: 'thunderstorm', color: 'violet' },
+  { id: 'waves', name: 'Sea waves', detail: 'Atlantic shore', duration: '2:47', channels: 'Stereo', icon: 'sea-waves', color: 'coral' },
 ];
 
 export const NOISES = [

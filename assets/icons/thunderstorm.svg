@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#20382f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Storm cloud with rain and lightning</title>
+  <path d="M12 26h23c5 0 9-4 9-9s-4-8-9-8c-1-4-5-6-10-6-6 0-10 4-11 9-6-1-10 3-10 8 0 4 3 6 8 6Z"/>
+  <path d="M15 12c3 0 5 2 5 4m15-7c-3 0-5 1-6 4" opacity=".6"/>
+  <path d="m10 31-2 5m9-6-2 5m23-5-2 5M9 39l-2 4m33-4-2 4"/>
+  <path d="m28 26-8 10h7l-3 9 12-15h-8l3-4Z" fill="#20382f" stroke="none"/>
+</svg>

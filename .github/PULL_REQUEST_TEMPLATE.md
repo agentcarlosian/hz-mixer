@@ -7,7 +7,7 @@ Describe the behavior changed and the scope kept unchanged.
 - [ ] `npm run check`
 - [ ] `npm test`
 - [ ] `npm run test:browser` for relevant UI/audio changes
-- [ ] Standalone regenerated and release validation checked when relevant
+- [ ] Web/standalone builds regenerated and release validation checked when relevant
 - [ ] Storage/JSON compatibility and no-autoplay behavior preserved
 - [ ] New asset redistribution terms and source records included, if applicable
 

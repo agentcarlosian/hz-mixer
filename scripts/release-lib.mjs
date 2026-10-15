@@ -1,7 +1,18 @@
 import { createHash } from 'node:crypto';
 import { zipSync, unzipSync } from 'fflate';
+import { readFile } from 'node:fs/promises';
+import { vendorFiles } from './build-lib.mjs';
 
-export const releaseFiles = ['Hz Mixer.html', 'README.txt', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'AUDIO_SOURCES.md', 'ICON_LICENSE.txt'];
+export const releaseFiles = ['Hz Mixer.html', 'README.txt', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'assets/audio/SOURCES.md', 'assets/icons/SOURCES.md', 'assets/icons/LICENSE', ...vendorFiles];
+export async function releaseEntries(root) {
+  const entries = {};
+  for (const name of releaseFiles) {
+    const path = name === 'README.txt' ? 'docs/release-readme.txt' : name;
+    const bytes = await readFile(new URL(path, root));
+    entries[name] = path.startsWith('vendor/') ? bytes : Buffer.from(normalizeText(bytes.toString('utf8')));
+  }
+  return entries;
+}
 export const archiveFiles = [...releaseFiles, 'release-manifest.json', 'SHA256SUMS.txt'];
 export const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 export const normalizeText = (text) => text.replaceAll('\r\n', '\n');

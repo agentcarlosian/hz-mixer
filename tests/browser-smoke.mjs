@@ -6,20 +6,21 @@ import { spawn } from 'node:child_process';
 const browser = await firefox.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1365, height: 1000 }, acceptDownloads: true });
 page.setDefaultTimeout(20000);
-const errors = [], badResponses = [], evidence = {};
+const errors = [], badResponses = [], requests = [], evidence = {};
+page.on('request', (request) => requests.push(request.url()));
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('response', (r) => { if (r.status() >= 400) badResponses.push([r.url(), r.status()]); });
 const root = new URL('../output/browser/', import.meta.url);
 let previewProcess;
 async function startPreview() {
   await mkdir(root, { recursive: true });
-  previewProcess = spawn(process.execPath, [fileURLToPath(new URL('../serve.mjs', import.meta.url)), '0'], { cwd: fileURLToPath(new URL('../', import.meta.url)), stdio: ['ignore', 'pipe', 'pipe'] });
+  previewProcess = spawn(process.execPath, [fileURLToPath(new URL('../serve.mjs', import.meta.url)), '0', '--site', '--prefix'], { cwd: fileURLToPath(new URL('../', import.meta.url)), stdio: ['ignore', 'pipe', 'pipe'] });
   return new Promise((resolve, reject) => {
     let output = '';
     const timer = setTimeout(() => { previewProcess.kill(); reject(new Error('Preview server did not start.')); }, 15000);
     previewProcess.once('error', (error) => { clearTimeout(timer); reject(error); });
     previewProcess.once('exit', (code) => { clearTimeout(timer); reject(new Error('Preview exited: ' + code)); });
-    previewProcess.stdout.on('data', (chunk) => { output += chunk; const match = output.match(/http:\/\/127\.0\.0\.1:\d+\//); if (match) { clearTimeout(timer); resolve(match[0]); } });
+    previewProcess.stdout.on('data', (chunk) => { output += chunk; const match = output.match(/http:\/\/127\.0\.0\.1:\d+\/hz-mixer\//); if (match) { clearTimeout(timer); resolve(match[0]); } });
     previewProcess.stderr.on('data', (chunk) => process.stderr.write(chunk));
   });
 }
@@ -34,8 +35,29 @@ try {
     AudioContext.prototype.createConstantSource = function () { const node = constant.call(this); window.__qa?.controls.push(node); return node; };
   });
   await page.goto(previewUrl, { waitUntil: 'networkidle' });
+  assert(!requests.some((url) => url.endsWith('.mp3') || url.includes('lamejs.iife')), 'audio and encoder load lazily');
+  assert(await page.locator('meta[name="application-version"]').getAttribute('content') !== 'development');
+  await page.locator('#recording-credits').click();
+  assert(await page.locator('#credits-dialog').isVisible());
+  assert((await page.locator('#credits-dialog').textContent()).includes('LGPL-3.0'));
+  await page.locator('#credits-dialog button').click();
+  await page.locator('#privacy-open').click(); assert(await page.locator('#privacy-dialog').isVisible()); await page.locator('#privacy-dialog button').click();
   assert.equal(await page.title(), 'Hz Mixer');
   assert.equal(await page.locator('h1').textContent(), 'Hz Mixer');
+  assert.equal(await page.locator('.brand').innerText(), 'Hz Mixer');
+  assert.equal(await page.locator('#generator-heading').textContent(), 'Generator');
+  assert.equal(await page.locator('#monitor-heading').textContent(), 'Monitor');
+  assert((await page.locator('.brand-mark img').getAttribute('src')).endsWith('/mixer-waves.svg'));
+  assert((await page.locator('link[rel="icon"]').getAttribute('href')).endsWith('/mixer-waves.svg'));
+  assert(await page.locator('.brand-mark').evaluate((mark) => {
+    const image = mark.querySelector('img').getBoundingClientRect(), tile = mark.getBoundingClientRect();
+    return Math.abs(image.width - tile.width) < .1 && Math.abs(image.height - tile.height) < .1;
+  }), 'wave artwork fills the brand tile');
+  assert.equal(await page.locator('.generator-panel').getAttribute('aria-labelledby'), 'generator-heading');
+  assert(await page.locator('.output-panel').evaluate((monitor) => Boolean(monitor.compareDocumentPosition(document.querySelector('.generator-panel')) & Node.DOCUMENT_POSITION_FOLLOWING)));
+  for (const [id, icon] of [['cascade', 'waterfall'], ['stream', 'stream-flow'], ['storm', 'thunderstorm'], ['waves', 'sea-waves']]) {
+    assert((await page.locator('[data-sound="' + id + '"] .sound-icon img').getAttribute('src')).endsWith('/' + icon + '.svg'));
+  }
   assert.equal(await page.locator('#mix-select option').count(), 38);
   await page.locator('#mix-select').selectOption('preset:theta-783');
   await page.locator('#favorite-mix').click();
@@ -124,9 +146,38 @@ try {
   await page.locator('#open-export').click(); await commit('#export-seconds', 7200); await page.locator('#download-export').click(); await page.locator('#cancel-export').click();
   await page.waitForFunction(() => document.querySelector('#export-error').textContent.includes('cancelled')); await page.locator('#cancel-export').click();
   console.log('UI WAV export and cancel passed');
+  await commit('#fade-in', 0); await commit('#fade-out', 0);
+  await page.locator('#open-export').click(); await page.locator('#export-format').selectOption('mp3'); await commit('#export-seconds', 4);
+  assert(await page.locator('#export-bitrate').isVisible());
+  assert.equal(await page.locator('#export-bitrate').inputValue(), '256');
+  const mp3Event = page.waitForEvent('download'); await page.locator('#download-export').click(); const mp3 = await mp3Event;
+  assert(mp3.suggestedFilename().endsWith('.mp3'));
+  const mp3Bytes = await readFile(await mp3.path()); await writeFile(new URL('export-stereo.mp3', root), mp3Bytes);
+  evidence.mp3Download = await page.evaluate(async (base64) => {
+    const data = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const context = new AudioContext({ sampleRate: 44100 });
+    const decoded = await context.decodeAudioData(data.buffer);
+    const amplitude = (channel, frequency) => {
+      const samples = decoded.getChannelData(channel); let re = 0, im = 0;
+      for (let i = 0; i < 44100; i++) { const phase = 2 * Math.PI * frequency * i / 44100; re += samples[i + 22050] * Math.cos(phase); im += samples[i + 22050] * Math.sin(phase); }
+      return Math.hypot(re, im) / 22050;
+    };
+    const result = { channels: decoded.numberOfChannels, duration: decoded.duration, left196: amplitude(0,196), left204: amplitude(0,204), right196: amplitude(1,196), right204: amplitude(1,204) };
+    await context.close(); return result;
+  }, mp3Bytes.toString('base64'));
+  assert.equal(evidence.mp3Download.channels, 2); assert(evidence.mp3Download.duration >= 4 && evidence.mp3Download.duration < 4.15);
+  assert(evidence.mp3Download.left196 > .01 && evidence.mp3Download.left196 > evidence.mp3Download.left204 * 100);
+  assert(evidence.mp3Download.right204 > .01 && evidence.mp3Download.right204 > evidence.mp3Download.right196 * 100);
+  await page.locator('#export-rate').selectOption('48000'); await page.locator('#export-bitrate').selectOption('128'); await commit('#export-seconds', 2);
+  const altEvent = page.waitForEvent('download'); await page.locator('#download-export').click(); const alt = await altEvent;
+  const altBytes = await readFile(await alt.path()); assert.equal([44100,48000,32000][(altBytes[2] >> 2) & 3], 48000);
+  await commit('#export-seconds', 7200); await page.locator('#download-export').click(); await page.locator('#cancel-export').click();
+  await page.waitForFunction(() => document.querySelector('#export-error').textContent.includes('cancelled'));
+  await page.locator('#cancel-export').click();
+  console.log('UI MP3 export, decoded stereo frequencies and cancel passed', evidence.mp3Download);
   evidence.offline = await page.evaluate(async () => {
-    const { defaultMix } = await import('/src/mix-state.mjs'); const { renderWav } = await import('/src/wav-export.mjs');
-    const { AudioEngine } = await import('/src/audio-engine.js');
+    const { defaultMix } = await import(new URL('src/mix-state.mjs', location.href)); const { renderWav } = await import(new URL('src/wav-export.mjs', location.href));
+    const { AudioEngine } = await import(new URL('src/audio-engine.js', location.href));
     const engine = new AudioEngine(); engine.update(defaultMix());
     const results = [];
     for (const mode of ['binaural', 'monaural', 'isochronic']) {
@@ -145,6 +196,30 @@ try {
     const streamed = await renderWav(mix, 2, 48000, (id) => engine.buffer(id), () => {}, null, 1, { async write(bytes) { streamedBytes += bytes.byteLength; writes++; } });
     if (streamed !== null || streamedBytes !== natural.size || writes !== 3) throw new Error('Streaming WAV sink failed');
     results.push({ mode: 'streaming sink', streamedBytes, writes });
+    const { renderMp3 } = await import(new URL('src/mp3-export.mjs', location.href));
+    const programmed = defaultMix(); programmed.mode = 'isochronic'; programmed.noise.pink.enabled = true;
+    programmed.automation.kind = 'sequence'; programmed.automation.stages = [
+      { type: 'hold', start: 7.83, end: 7.83, seconds: 2, curve: 'linear' },
+      { type: 'sweep', start: 7.83, end: 12, seconds: 4, curve: 'smooth' },
+    ];
+    programmed.fades = { in: .2, out: .3 };
+    const progress = [];
+    const encoded = await renderMp3(programmed, 6, 48000, 192, (id) => engine.buffer(id), (value) => progress.push(value), null, 1);
+    const encodedBytes = new Uint8Array(await encoded.arrayBuffer()), streamedParts = [];
+    const mp3Sink = await renderMp3(programmed, 6, 48000, 192, (id) => engine.buffer(id), () => {}, null, 1, { async write(bytes) { streamedParts.push(...Uint8Array.from(bytes)); } });
+    if (mp3Sink !== null || streamedParts.length !== encodedBytes.length || streamedParts.some((value, i) => value !== encodedBytes[i])) throw new Error('MP3 stream/Blob mismatch');
+    const decoded = await engine.context.decodeAudioData(encodedBytes.buffer);
+    if (decoded.numberOfChannels !== 2 || decoded.duration < 6 || decoded.duration > 6.15) throw new Error('MP3 block continuity/padding failed');
+    if (progress.some((value, i) => i > 0 && value < progress[i - 1]) || progress.at(-1) !== 1) throw new Error('MP3 progress is not monotonic');
+    const abort = new AbortController(); let cancelled = false;
+    try { await renderMp3(programmed, 6, 48000, 192, (id) => engine.buffer(id), (value) => { if (value > 0) abort.abort(); }, abort.signal, 1); }
+    catch (error) { if (error.name !== 'AbortError') throw error; cancelled = true; }
+    if (!cancelled) throw new Error('MP3 cancellation during encoding failed');
+    let failedWrite = false;
+    try { await renderMp3(programmed, 1, 48000, 192, (id) => engine.buffer(id), () => {}, null, 1, { async write() { throw new Error('Synthetic disk full'); } }); }
+    catch (error) { if (error.message !== 'Synthetic disk full') throw error; failedWrite = true; }
+    if (!failedWrite) throw new Error('MP3 sink errors must propagate');
+    results.push({ mode: 'MP3 stages + recordings + noise, chunked streaming and mid-encode cancel', bytes: encoded.size, duration: decoded.duration, channels: decoded.numberOfChannels, progressEvents: progress.length });
     await engine.context.close(); return results;
   });
   console.log('Offline comparison', evidence.offline);
@@ -171,11 +246,38 @@ try {
     await page.setViewportSize({ width, height: 900 });
     const layout = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, overflowing: [...document.querySelectorAll('input, select, button')].filter((e) => e.getClientRects().length && (e.getBoundingClientRect().right > document.documentElement.clientWidth + 1 || e.getBoundingClientRect().left < -1)).map((e) => e.id || e.className) }));
     assert(layout.scroll <= layout.width, JSON.stringify(layout)); assert.equal(layout.overflowing.length, 0, JSON.stringify(layout));
+    assert(await page.locator('#monitor-heading').isVisible());
+    const monitor = await page.locator('.output-panel').boundingBox(), generator = await page.locator('.generator-panel').boundingBox();
+    assert(monitor.y + monitor.height <= generator.y, 'monitor precedes generator at ' + width + 'px');
+    assert(await page.locator('img').evaluateAll((images) => images.every((image) => image.complete && image.naturalWidth > 0)), 'all icons loaded');
     evidence['layout' + width] = layout;
     if (width === 390) await page.screenshot({ path: fileURLToPath(new URL('roadmap-mobile-dark.png', root)), fullPage: true });
+    await page.locator('#open-export').click(); await page.locator('[data-export-tab="audio"]').click(); await page.locator('#export-format').selectOption('mp3');
+    assert(await page.locator('#export-bitrate').isVisible());
+    assert(await page.locator('#export-dialog').evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth));
+    if (width === 390 || width === 1365) await page.screenshot({ path: fileURLToPath(new URL('mp3-export-' + width + '.png', root)) });
+    await page.locator('#cancel-export').click();
   }
   await page.locator('#theme-mode').selectOption('light'); await page.setViewportSize({ width: 1365, height: 1000 }); await page.screenshot({ path: fileURLToPath(new URL('roadmap-desktop-light.png', root)), fullPage: true });
   assert.deepEqual(errors, []); assert.deepEqual(badResponses, []);
+  assert(requests.filter((url) => /^https?:/.test(url)).every((url) => url.startsWith(previewUrl)), 'all app requests stay inside the project prefix');
+  const artwork = [
+    ['mixer-waves', 'Hz Mixer', '#79d3b7', false],
+    ['waterfall', 'Waterfall', '#283f50', true],
+    ['stream-flow', 'Stream', '#284839', true],
+    ['thunderstorm', 'Thunderstorm', '#3e344f', true],
+    ['sea-waves', 'Sea waves', '#513d32', true],
+  ];
+  const review = await browser.newPage({ viewport: { width: 1060, height: 250 } });
+  const artMarkup = [];
+  for (const [name, label, color, inverted] of artwork) {
+    const bytes = await readFile(new URL('../assets/icons/' + name + '.svg', import.meta.url));
+    artMarkup.push('<section><div style="background:' + color + '"><img style="filter:' + (inverted ? 'invert(1)' : 'none') + (inverted ? '' : ';width:148px;height:148px') + '" src="data:image/svg+xml;base64,' + bytes.toString('base64') + '" alt="' + label + ' artwork" /></div><h2>' + label + '</h2></section>');
+  }
+  await review.setContent('<!doctype html><html><head><style>body{margin:0;padding:24px;background:#171b1a;color:#e3ece6;font:14px Segoe UI,Arial,sans-serif}main{display:grid;grid-template-columns:repeat(5,1fr);gap:24px}section{text-align:center}section div{width:148px;height:148px;margin:auto;display:grid;place-items:center;border-radius:7px}img{width:124px;height:124px}h2{font-size:14px;font-weight:600;margin:14px 0 0}</style></head><body><main>' + artMarkup.join('') + '</main></body></html>');
+  assert(await review.locator('img').evaluateAll((images) => images.every((image) => image.complete && image.naturalWidth > 0)));
+  await review.screenshot({ path: fileURLToPath(new URL('icon-artwork.png', root)) });
+  await review.close();
   await writeFile(new URL('roadmap-evidence.json', root), JSON.stringify(evidence, null, 2));
   console.log('All browser roadmap checks passed');
 } finally {

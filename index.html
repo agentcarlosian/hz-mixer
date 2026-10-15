@@ -21,13 +21,13 @@
       document.querySelector('meta[name="theme-color"]').content = dark ? '#171b1a' : '#f5f7f6';
     })();
   </script>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23177671'/%3E%3Cpath d='M8 34h10l6-16 9 28 7-19 5 7h11' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="icon" href="./assets/icons/mixer-waves.svg" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand"><span class="brand-mark"><img src="./assets/icons/audio-lines.svg" alt="" /></span><div><h1>Hz Mixer</h1><span>Audio studio</span></div></div>
+      <div class="brand"><span class="brand-mark"><img src="./assets/icons/mixer-waves.svg" alt="" /></span><h1>Hz Mixer</h1></div>
       <div class="topbar-actions"><span class="local-tag"><i></i> Local session</span><label class="theme-field" for="theme-mode"><span>Theme</span><select id="theme-mode"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div>
     </header>
     <main>
@@ -60,10 +60,15 @@
         <div class="master-control"><button id="master-mute" class="icon-button" aria-label="Mute master" title="Mute master" aria-pressed="false"><img src="./assets/icons/volume-2.svg" alt="" /></button><label class="field" for="master-level"><span>Master <output id="master-value">55%</output></span><input id="master-level" type="range" min="0" max="100" value="55" /></label></div>
       </section>
 
+      <section class="output-panel" aria-labelledby="monitor-heading">
+        <div class="output-toolbar"><div class="output-title"><h2 id="monitor-heading">Monitor</h2></div><div class="view-control" role="group" aria-label="Output view"><button data-view="waveform" aria-pressed="true">Waveform</button><button data-view="spectrum" aria-pressed="false">Spectrum</button></div><div class="meter-group"><span>RMS</span><output id="signal-level">-- dBFS</output><div class="level-meter"><span id="meter-fill"></span></div></div></div>
+        <div class="scope"><canvas id="scope-canvas" width="1200" height="120" aria-label="Live output waveform"></canvas><span id="scope-state">Ready</span></div>
+      </section>
+
       <div class="workspace">
-        <section class="rhythm-panel" aria-labelledby="rhythm-heading">
-          <div class="section-heading"><div><span class="eyebrow">01 / Generator</span><h2 id="rhythm-heading">Rhythm</h2></div><div class="channel-tools"><button id="tone-mute" class="icon-button mute" aria-label="Mute rhythm" title="Mute rhythm" aria-pressed="false"><img src="./assets/icons/volume-x.svg" alt="" /></button><button id="tone-solo" class="icon-button solo" aria-label="Solo rhythm" title="Solo rhythm" aria-pressed="false"><img src="./assets/icons/headphones.svg" alt="" /></button></div></div>
-          <fieldset class="mode-control"><legend class="sr-only">Rhythm mode</legend>
+        <section class="generator-panel" aria-labelledby="generator-heading">
+          <div class="section-heading"><h2 id="generator-heading">Generator</h2><div class="channel-tools"><button id="tone-mute" class="icon-button mute" aria-label="Mute generator" title="Mute generator" aria-pressed="false"><img src="./assets/icons/volume-x.svg" alt="" /></button><button id="tone-solo" class="icon-button solo" aria-label="Solo generator" title="Solo generator" aria-pressed="false"><img src="./assets/icons/headphones.svg" alt="" /></button></div></div>
+          <fieldset class="mode-control"><legend class="sr-only">Generator mode</legend>
             <label><input type="radio" name="mode" value="binaural" checked /><span>Binaural</span></label>
             <label><input type="radio" name="mode" value="monaural" /><span>Monaural</span></label>
             <label><input type="radio" name="mode" value="isochronic" /><span>Isochronic</span></label>
@@ -89,7 +94,7 @@
         </section>
 
         <section class="environment-panel" aria-labelledby="environment-heading">
-          <div class="section-heading"><div><span class="eyebrow">02 / Field recordings</span><h2 id="environment-heading">Environment</h2></div><span id="active-count" class="count-tag">1 layer</span></div>
+          <div class="section-heading"><h2 id="environment-heading">Environment</h2><span id="active-count" class="count-tag">1 layer</span></div>
           <div id="sound-list" class="sound-list"></div>
           <h3 class="noise-heading">Noise</h3><div id="noise-list" class="sound-list noise-list"></div>
           <div class="environment-footer"><span id="solo-note">Independent audio layers</span><button id="clear-solo" class="text-button" hidden>Clear solo</button></div>
@@ -98,18 +103,15 @@
 
       <section id="session-builder" class="session-builder" hidden aria-labelledby="session-heading"><div class="section-heading"><div><span class="eyebrow">Sequence</span><h2 id="session-heading">Session stages</h2></div><div class="stage-actions"><output id="session-total"></output><button id="add-stage" class="icon-button" aria-label="Add stage" title="Add stage"><img src="./assets/icons/plus.svg" alt="" /></button></div></div><div id="stage-list"></div><p id="stage-error" class="error" role="alert"></p></section>
 
-      <section class="output-panel" aria-label="Output monitor">
-        <div class="output-toolbar"><div class="output-title"><span class="eyebrow">03 / Monitor</span><h2>Output</h2></div><div class="view-control" role="group" aria-label="Output view"><button data-view="waveform" aria-pressed="true">Waveform</button><button data-view="spectrum" aria-pressed="false">Spectrum</button></div><div class="meter-group"><span>RMS</span><output id="signal-level">-- dBFS</output><div class="level-meter"><span id="meter-fill"></span></div></div></div>
-        <div class="scope"><canvas id="scope-canvas" width="1200" height="120" aria-label="Live output waveform"></canvas><span id="scope-state">Ready</span></div>
-      </section>
     </main>
-    <footer><span>Start at a comfortable device volume. Frequencies describe sound, not a guaranteed mental state.</span><a href="./assets/audio/SOURCES.md" target="_blank" rel="noopener">Recording credits</a></footer>
+    <footer><span>Start at a comfortable device volume. Frequencies describe sound, not a guaranteed mental state.</span><span class="footer-links"><button id="privacy-open" class="text-button">Privacy</button><button id="recording-credits" class="text-button">Credits</button></span></footer>
   </div>
 
   <dialog id="save-dialog"><form id="save-form"><h2>Save your mix</h2><label class="field" for="mix-name"><span>Name</span><input id="mix-name" type="text" maxlength="40" required autocomplete="off" placeholder="Evening rain" /></label><p id="save-hint">Stored in this browser.</p><p id="save-error" role="alert"></p><div class="dialog-actions"><button type="button" id="cancel-save" class="button secondary">Cancel</button><button type="submit" class="button primary"><img class="icon" src="./assets/icons/save.svg" alt="" />Save</button></div></form></dialog>
-  <dialog id="export-dialog"><h2>Export</h2><div class="export-tabs" role="group" aria-label="Export format"><button data-export-tab="audio" aria-pressed="true">WAV audio</button><button data-export-tab="mix" aria-pressed="false">Mix JSON</button><button data-export-tab="library" aria-pressed="false">Library backup</button></div><div id="audio-export-fields" class="program-fields"><label class="compact-field">Duration (sec)<input id="export-seconds" type="number" min="1" max="7200" step="1" /></label><label class="compact-field">Sample rate<select id="export-rate"><option value="44100">44.1 kHz</option><option value="48000">48 kHz</option></select></label></div><p id="export-summary"></p><progress id="export-progress" max="1" value="0" hidden></progress><p id="export-error" class="error" role="alert"></p><div class="dialog-actions"><button id="cancel-export" class="button secondary">Close</button><button id="download-export" class="button primary"><img class="icon" src="./assets/icons/download.svg" alt="" /><span>Export</span></button></div></dialog>
+  <dialog id="export-dialog"><h2>Export</h2><div class="export-tabs" role="group" aria-label="Export type"><button data-export-tab="audio" aria-pressed="true">Audio</button><button data-export-tab="mix" aria-pressed="false">Mix JSON</button><button data-export-tab="library" aria-pressed="false">Library backup</button></div><div id="audio-export-fields" class="program-fields"><label class="compact-field">Format<select id="export-format"><option value="wav">WAV</option><option value="mp3">MP3</option></select></label><label class="compact-field">Duration (sec)<input id="export-seconds" type="number" min="1" max="7200" step="1" /></label><label class="compact-field">Sample rate<select id="export-rate"><option value="44100">44.1 kHz</option><option value="48000">48 kHz</option></select></label><label id="export-bitrate-field" class="compact-field" hidden>Bitrate<select id="export-bitrate"><option value="128">128 kbps</option><option value="192">192 kbps</option><option value="256" selected>256 kbps</option><option value="320">320 kbps</option></select></label></div><p id="export-summary"></p><progress id="export-progress" max="1" value="0" hidden></progress><p id="export-error" class="error" role="alert"></p><div class="dialog-actions"><button id="cancel-export" class="button secondary">Close</button><button id="download-export" class="button primary"><img class="icon" src="./assets/icons/download.svg" alt="" /><span>Export</span></button></div></dialog>
   <dialog id="import-dialog"><h2>Import mixes</h2><label class="compact-field">JSON file<input id="import-file" type="file" accept=".json,application/json" /></label><p id="import-summary">Select a mix or library backup.</p><ul id="import-preview"></ul><label class="compact-field">Library action<select id="import-action"><option value="merge">Merge with saved mixes</option><option value="replace">Replace saved mixes</option></select></label><label class="check-field" id="import-current-field" hidden><input id="import-current" type="checkbox" checked />Include current mix from backup</label><p id="import-error" class="error" role="alert"></p><div class="dialog-actions"><button id="cancel-import" class="button secondary">Cancel</button><button id="confirm-import" class="button primary" disabled><img class="icon" src="./assets/icons/upload.svg" alt="" />Import</button></div></dialog>
   <template id="direct-export-template"><label class="check-field" id="direct-export-field"><input id="export-direct" type="checkbox" checked />Save directly to file</label></template>
+  <dialog id="privacy-dialog" class="credits-dialog"><form method="dialog"><h2>Privacy</h2><button class="button secondary">Close</button></form><p>Audio generation, exports and JSON imports run in this browser. Hz Mixer has no accounts, analytics or upload endpoint.</p><p>Settings, favorites and saved mixes use this browser's local storage. Clearing site data removes them. Download a library backup before changing browsers, moving the portable file or switching between the website and offline app.</p><p>The website requests app files, enabled recordings and the MP3 encoder from its host. GitHub Pages records visitor IP addresses for security. No mix settings or imported JSON are sent by Hz Mixer. Exported files are stored wherever your browser saves downloads.</p><p>The standalone HTML contains its assets and makes no runtime network requests. No microphone permission is requested.</p></dialog>
   <script type="module" src="./src/app.js"></script>
 </body>
 </html>

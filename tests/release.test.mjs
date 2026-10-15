@@ -24,13 +24,28 @@ test('release validation rejects content changes, metadata mismatch and extra ar
   const extra = unzipSync(archive); extra['../outside'] = Buffer.from('bad');
   assert.throws(() => validateReleaseArchive(zipSync(extra), '0.1.0', 'MIT'), /entries/);
 });
-test('package versions and lockfile are aligned; runtime stays dependency-free', async () => {
+test('package versions and lockfile are aligned; runtime dependencies are vendored explicitly', async () => {
   const metadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url)));
   const lock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url)));
   assert.equal(lock.name, metadata.name); assert.equal(lock.version, metadata.version);
   assert.deepEqual(lock.packages[''].devDependencies, metadata.devDependencies);
   assert.equal(lock.packages[''].license, metadata.license);
   assert.equal(metadata.dependencies, undefined); assert(metadata.private);
+});
+
+test('Pages deployment is manual, main-only and isolated from read-only PR CI', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8');
+  assert(workflow.includes('workflow_dispatch:'));
+  assert(!/\n\s*(?:push|pull_request|pull_request_target|schedule|workflow_run):/.test(workflow));
+  assert(workflow.includes("github.ref == 'refs/heads/main' && inputs.publish"));
+  assert(workflow.includes('default: false'));
+  assert(workflow.includes('needs: build'));
+  assert(workflow.includes('name: github-pages'));
+  assert(workflow.includes('path: _site'));
+  assert(!workflow.includes('contents: write'));
+  const beforeDeploy = workflow.split('  deploy:')[0];
+  assert(!beforeDeploy.includes('pages: write')); assert(!beforeDeploy.includes('id-token: write'));
+  for (const [, ref] of workflow.matchAll(/uses: [^@]+@([^\s]+)/g)) assert(/^[a-f0-9]{40}$/.test(ref));
 });
 
 test('CI is validation-only, SHA-pinned and read-only', async () => {

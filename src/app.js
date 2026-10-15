@@ -4,8 +4,10 @@ import { iconUrl } from './resources.js';
 import { programAt, sessionSeconds, signalError } from './program.mjs';
 import { makeBackup, makeMixFile, parseBackup, mergeImports } from './library.mjs';
 import { renderWav, wavError, exportSeconds } from './wav-export.mjs';
+import { renderMp3, mp3Error } from './mp3-export.mjs';
 
 const $ = (selector) => document.querySelector(selector);
+$('#privacy-open').addEventListener('click', () => $('#privacy-dialog').showModal());
 // Preserve legacy keys when upgrading on the same browser origin.
 const CURRENT_KEY = 'beat-mixer.current.v1';
 const LIBRARY_KEY = 'beat-mixer.library.v1';
@@ -142,7 +144,7 @@ function render(preserveInput = false) {
   $('#master-mute img').src = iconUrl(mix.masterMuted ? 'volume-x' : 'volume-2');
   const left = (mix.carrier - mix.beat / 2).toFixed(3);
   const right = (mix.carrier + mix.beat / 2).toFixed(3);
-  $('#signal-detail').textContent = mix.mode === 'off' ? 'Rhythm off'
+  $('#signal-detail').textContent = mix.mode === 'off' ? 'Generator off'
     : mix.mode === 'binaural' ? 'Left ' + left + ' Hz \u00b7 Right ' + right + ' Hz'
     : mix.mode === 'monaural' ? left + ' + ' + right + ' Hz mixed to both ears'
     : mix.carrier + ' Hz tone \u00b7 ' + mix.beat.toFixed(2) + ' pulses/second';
@@ -401,7 +403,7 @@ function drawProgram() {
   const position = mix.automation.kind === 'sweep' && mix.automation.sweep.repeat === 'pingpong' ? elapsed % length : Math.min(elapsed, length);
   drawing.fillStyle = '#c8775b'; drawing.beginPath(); drawing.arc(position / length * (width - 8) + 4, y(current.rate), 4, 0, Math.PI * 2); drawing.fill();
   const left = (mix.carrier - current.rate / 2).toFixed(3), right = (mix.carrier + current.rate / 2).toFixed(3);
-  $('#signal-detail').textContent = mix.mode === 'off' ? 'Rhythm off' : mix.mode === 'isochronic' ? mix.carrier + ' Hz tone / ' + current.rate.toFixed(2) + ' pulses/second' : mix.mode === 'binaural' ? 'Left ' + left + ' Hz / Right ' + right + ' Hz' : left + ' + ' + right + ' Hz mixed to both ears';
+  $('#signal-detail').textContent = mix.mode === 'off' ? 'Generator off' : mix.mode === 'isochronic' ? mix.carrier + ' Hz tone / ' + current.rate.toFixed(2) + ' pulses/second' : mix.mode === 'binaural' ? 'Left ' + left + ' Hz / Right ' + right + ' Hz' : left + ' + ' + right + ' Hz mixed to both ears';
 }
 document.querySelectorAll('input[name="program"]').forEach((input) => input.addEventListener('change', () => { mix.automation.kind = input.value; changed(); engine.resetPosition(); }));
 for (const key of ['start', 'end', 'seconds', 'curve', 'repeat']) {
@@ -462,18 +464,22 @@ let exportTab = 'audio', exportAbort = null;
 if (typeof window.showSaveFilePicker === 'function') $('#export-summary').before($('#direct-export-template').content.cloneNode(true));
 function renderExport() {
   $('#audio-export-fields').hidden = exportTab !== 'audio';
-  const seconds = Number($('#export-seconds').value), rate = Number($('#export-rate').value);
-  $('#export-summary').textContent = exportTab === 'audio' ? 'Stereo 16-bit PCM / ' + formatTime(seconds) + ' / ' + ((44 + seconds * rate * 4) / 1048576).toFixed(1) + ' MB' : exportTab === 'mix' ? 'Current mix, frequency program and layer settings.' : library.length + ' saved mixes, current mix and ' + favorites.size + ' favorites.';
+  const seconds = Number($('#export-seconds').value), rate = Number($('#export-rate').value), mp3 = $('#export-format').value === 'mp3', bitrate = Number($('#export-bitrate').value);
+  const bytes = mp3 ? seconds * bitrate * 125 : 44 + seconds * rate * 4;
+  $('#export-bitrate-field').hidden = !mp3;
+  $('#export-summary').textContent = exportTab === 'audio' ? (mp3 ? 'Stereo MP3 / ' + bitrate + ' kbps / ' : 'Stereo 16-bit PCM / ') + formatTime(seconds) + ' / ' + (mp3 ? 'approx. ' : '') + (bytes / 1048576).toFixed(1) + ' MB' + (mp3 ? ' / Lossy; use WAV for an uncompressed reference.' : '') : exportTab === 'mix' ? 'Current mix, frequency program and layer settings.' : library.length + ' saved mixes, current mix and ' + favorites.size + ' favorites.';
   $('#export-seconds').disabled = Boolean(exportAbort) || mix.automation.kind === 'sequence';
   $('#export-rate').disabled = Boolean(exportAbort);
+  $('#export-format').disabled = Boolean(exportAbort); $('#export-bitrate').disabled = Boolean(exportAbort);
   $('#download-export').disabled = Boolean(exportAbort);
   if ($('#export-direct')) { $('#direct-export-field').hidden = exportTab !== 'audio'; $('#export-direct').disabled = Boolean(exportAbort); }
-  if (exportTab === 'audio' && seconds * rate * 4 > 128 * 1048576 && !$('#export-direct')?.checked) $('#export-summary').textContent += ' / Large download: browser memory use may be high.';
+  if (exportTab === 'audio' && bytes > 128 * 1048576 && !$('#export-direct')?.checked) $('#export-summary').textContent += ' / Large download: browser memory use may be high.';
   document.querySelectorAll('[data-export-tab]').forEach((button) => { button.setAttribute('aria-pressed', String(button.dataset.exportTab === exportTab)); button.disabled = Boolean(exportAbort); });
 }
 $('#open-export').addEventListener('click', () => { $('#export-seconds').value = exportSeconds(mix); $('#export-error').textContent = ''; $('#export-progress').hidden = true; renderExport(); $('#export-dialog').showModal(); });
 document.querySelectorAll('[data-export-tab]').forEach((button) => button.addEventListener('click', () => { exportTab = button.dataset.exportTab; $('#export-error').textContent = ''; renderExport(); }));
 $('#export-seconds').addEventListener('input', renderExport); $('#export-rate').addEventListener('change', renderExport);
+$('#export-format').addEventListener('change', renderExport); $('#export-bitrate').addEventListener('change', renderExport);
 $('#export-direct')?.addEventListener('change', renderExport);
 function cancelExport() { if (exportAbort) { exportAbort.abort(); $('#cancel-export').disabled = true; } else $('#export-dialog').close(); }
 $('#cancel-export').addEventListener('click', cancelExport);
@@ -481,20 +487,23 @@ $('#export-dialog').addEventListener('cancel', (event) => { if (exportAbort) { e
 $('#download-export').addEventListener('click', async () => {
   if (exportTab === 'mix') { jsonDownload(makeMixFile(mix, suggestedName), exportName() + '.json'); return; }
   if (exportTab === 'library') { jsonDownload(makeBackup(library, mix, suggestedName, [...favorites]), 'Hz Mixer library.json'); return; }
-  const snapshot = normalizeMix(mix), seconds = Number($('#export-seconds').value), rate = Number($('#export-rate').value), filename = exportName() + '.wav';
-  const error = wavError(snapshot, seconds, rate); if (error) { $('#export-error').textContent = error; return; }
+  const snapshot = normalizeMix(mix), seconds = Number($('#export-seconds').value), rate = Number($('#export-rate').value), format = $('#export-format').value, bitrate = Number($('#export-bitrate').value), filename = exportName() + '.' + format;
+  const error = format === 'mp3' ? mp3Error(snapshot, seconds, rate, bitrate) : wavError(snapshot, seconds, rate); if (error) { $('#export-error').textContent = error; return; }
   exportAbort = new AbortController(); renderExport(); $('#export-error').textContent = ''; $('#export-progress').hidden = false; $('#export-progress').value = 0;
   $('#cancel-export').textContent = 'Cancel export';
   let writable = null;
   try {
     if ($('#export-direct')?.checked) {
-      const handle = await window.showSaveFilePicker({ suggestedName: filename, types: [{ description: 'WAV audio', accept: { 'audio/wav': ['.wav'] } }] });
+      const handle = await window.showSaveFilePicker({ suggestedName: filename, types: [{ description: format.toUpperCase() + ' audio', accept: { [format === 'mp3' ? 'audio/mpeg' : 'audio/wav']: ['.' + format] } }] });
       writable = await handle.createWritable();
     }
-    const blob = await renderWav(snapshot, seconds, rate, (id) => engine.buffer(id), (progress, status) => { $('#export-progress').value = progress; $('#export-summary').textContent = status + ' / ' + Math.round(progress * 100) + '%'; }, exportAbort.signal, 20, writable);
+    const progress = (value, status) => { $('#export-progress').value = value; $('#export-summary').textContent = status + ' / ' + Math.round(value * 100) + '%'; };
+    const blob = format === 'mp3'
+      ? await renderMp3(snapshot, seconds, rate, bitrate, (id) => engine.buffer(id), progress, exportAbort.signal, 20, writable)
+      : await renderWav(snapshot, seconds, rate, (id) => engine.buffer(id), progress, exportAbort.signal, 20, writable);
     if (writable) await writable.close(); else downloadBlob(blob, filename);
-    notify('WAV export complete');
-  } catch (error) { if (writable) { try { await writable.abort(); } catch { /* A completed or closed writer cannot be aborted. */ } } $('#export-error').textContent = error.name === 'AbortError' ? 'Export cancelled. No completed WAV was saved.' : error.message; }
+    notify(format.toUpperCase() + ' export complete');
+  } catch (error) { if (writable) { try { await writable.abort(); } catch { /* A completed or closed writer cannot be aborted. */ } } $('#export-error').textContent = error.name === 'AbortError' ? 'Export cancelled. No completed audio file was saved.' : error.message; }
   finally { exportAbort = null; $('#cancel-export').textContent = 'Close'; $('#cancel-export').disabled = false; renderExport(); }
 });
 let importData = null, importRequest = 0;

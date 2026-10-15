@@ -29,14 +29,32 @@ export function wavError(mix, seconds, sampleRate) {
 }
 
 export async function renderWav(value, seconds, sampleRate, loadBuffer, onProgress, signal, chunkSeconds = 20, sink = null) {
+  const error = wavError(normalizeMix(value), seconds, sampleRate); if (error) throw new Error(error);
+  checkExportCancelled(signal);
+  const frames = Math.round(seconds * sampleRate), parts = sink ? null : [wavHeader(frames, sampleRate)];
+  if (sink) await sink.write(wavHeader(frames, sampleRate));
+  for await (const { left, right, progress } of renderPcm(value, seconds, sampleRate, loadBuffer, onProgress, signal, chunkSeconds)) {
+    const encoded = pcm16(left, right);
+    if (sink) await sink.write(encoded); else parts.push(encoded);
+    onProgress(progress, 'Rendering WAV');
+  }
+  checkExportCancelled(signal);
+  return sink ? null : new Blob(parts, { type: 'audio/wav' });
+}
+
+export function checkExportCancelled(signal) {
+  if (signal?.aborted) throw new DOMException('Export cancelled', 'AbortError');
+}
+
+export async function* renderPcm(value, seconds, sampleRate, loadBuffer, onProgress, signal, chunkSeconds = 20) {
   const mix = normalizeMix(value);
   const error = wavError(mix, seconds, sampleRate); if (error) throw new Error(error);
-  const cancelled = () => { if (signal?.aborted) throw new DOMException('Export cancelled', 'AbortError'); };
+  if (!Number.isFinite(chunkSeconds) || Math.round(chunkSeconds * sampleRate) < 1 || chunkSeconds > 30) throw new Error('Invalid render block size.');
+  const cancelled = () => checkExportCancelled(signal);
   cancelled(); onProgress(0, 'Loading audio');
   const audible = audibleLayers(mix), buffers = new Map();
   for (const { id } of [...SOUNDS, ...NOISES]) if (audible.has(id)) { cancelled(); buffers.set(id, await loadBuffer(id)); }
-  const frames = Math.round(seconds * sampleRate), parts = sink ? null : [wavHeader(frames, sampleRate)];
-  if (sink) await sink.write(wavHeader(frames, sampleRate));
+  const frames = Math.round(seconds * sampleRate);
   const blockSize = Math.round(chunkSeconds * sampleRate);
   for (let start = 0; start < frames; start += blockSize) {
     cancelled();
@@ -52,13 +70,10 @@ export async function renderWav(value, seconds, sampleRate, loadBuffer, onProgre
     setLayerLevels(context, mix, tone, layers, output.master, true);
     const rendered = await context.startRendering();
     cancelled();
-    const encoded = pcm16(rendered.getChannelData(0), rendered.getChannelData(1), warm, count);
-    if (sink) await sink.write(encoded); else parts.push(encoded);
-    onProgress((start + count) / frames, 'Rendering audio');
+    yield { left: rendered.getChannelData(0).subarray(warm), right: rendered.getChannelData(1).subarray(warm), progress: (start + count) / frames };
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
   cancelled();
-  return sink ? null : new Blob(parts, { type: 'audio/wav' });
 }
 
 export function exportSeconds(mix) {

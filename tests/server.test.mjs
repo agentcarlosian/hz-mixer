@@ -22,3 +22,23 @@ test('loopback preview serves source and blocks hidden/development paths and mut
     if (child.exitCode === null) { const closed = new Promise((resolve) => child.once('close', resolve)); child.kill(); await closed; }
   }
 });
+
+test('built-site preview serves the project prefix and correct runtime MIME types', async () => {
+  const child = spawn(process.execPath, [fileURLToPath(new URL('../serve.mjs', import.meta.url)), '0', '--site', '--prefix'], { stdio: ['ignore', 'pipe', 'pipe'] });
+  try {
+    const url = await new Promise((resolve, reject) => {
+      let output = '';
+      const timer = setTimeout(() => { child.kill(); reject(new Error('Built preview startup timeout')); }, 10000);
+      child.once('error', (error) => { clearTimeout(timer); reject(error); });
+      child.stdout.on('data', (chunk) => { output += chunk; const match = output.match(/http:\/\/127\.0\.0\.1:\d+\/hz-mixer\//); if (match) { clearTimeout(timer); resolve(match[0]); } });
+    });
+    for (const [path, type] of [['', 'text/html'], ['src/mp3-export.mjs','text/javascript'], ['styles.css','text/css'], ['assets/audio/stream.mp3','audio/mpeg'], ['vendor/lamejs/lamejs.iife.js','text/javascript'], ['vendor/lamejs/source.tar.gz','application/gzip']]) {
+      const response = await fetch(url + path, { method: 'HEAD' }); assert.equal(response.status, 200, path); assert(response.headers.get('content-type').startsWith(type), path);
+    }
+    const origin = new URL(url).origin;
+    for (const path of ['/src/app.js', '/index.html', '/.git/config', '/hz-mixer/package.json', '/hz-mixer/README.md', '/hz-mixer/Hz%20Mixer.html']) assert.notEqual((await fetch(origin + path)).status, 200, path);
+    assert.equal((await fetch(url + 'index.html', { method: 'POST' })).status, 405);
+  } finally {
+    if (child.exitCode === null) { const closed = new Promise((resolve) => child.once('close', resolve)); child.kill(); await closed; }
+  }
+});

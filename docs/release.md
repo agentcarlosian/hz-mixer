@@ -1,14 +1,16 @@
 # Release Runbook
 
-## Boundary
+## Boundaries
 
-The primary artifact is portable `Hz Mixer.html`. The repository contains source, tests, documentation and original assets; generated HTML, release archives, dependencies and QA output are ignored by Git. npm publishing is disabled with `private: true`.
+The primary public entry point is the static website, planned for `https://agentcarlosian.github.io/hz-mixer/`. It is not yet published. `_site/` is the only Pages upload directory; never upload the repository root, `dist/` or the portable HTML as the homepage.
 
-The CI workflow only validates source and uploads candidate workflow artifacts. It has read-only repository permissions and no release-publishing/deployment step. A local preparation command never creates a remote, pushes, tags, publishes or deploys.
+The optional portable artifact is `Hz Mixer.html`. `dist/` contains the verified ZIP, HTML, manifest, checksum list and release notes. Dependencies, generated outputs and local QA evidence are ignored. npm publication is disabled. Local preparation never creates a remote, pushes, tags or deploys.
+
+PR/push CI is read-only and stores candidate artifacts. The separate Pages workflow has only `workflow_dispatch`, requires its publish checkbox and `main`, and grants Pages/OIDC write permission only to the deploy job. Configure the `github-pages` environment's allowed branch as `main` and required reviewers where your plan supports them **before enabling deployment**. This repository cannot configure those hosted protections locally.
 
 ## Prepare Locally
 
-Use Node.js 24, then run:
+Use Node.js 24:
 
 ```sh
 npm ci --ignore-scripts
@@ -18,9 +20,7 @@ npm run test:browser
 npm run release:verify
 ```
 
-Check `package.json`, `package-lock.json`, `CHANGELOG.md` and `docs/releases/v<version>.md` before changing a version. The original source licence must be selected and the root `LICENSE` present; preparation refuses `UNLICENSED`. Asset licences stay separate.
-
-The output directory contains exactly:
+The built-site regression suite serves the actual `_site/` at `/hz-mixer/`. Check version metadata, relative resource URLs, lazy loading, Credits/Privacy and exports. ZIP verification checks the exact allowlist, source bytes, hashes, documentation links and deterministic metadata. Source text is LF-normalized; vendored encoder/source bytes are preserved. `dist/` must contain exactly:
 
 - `hz-mixer-<version>.zip`
 - `Hz Mixer.html`
@@ -28,35 +28,27 @@ The output directory contains exactly:
 - `SHA256SUMS.txt`
 - `RELEASE_NOTES.md`
 
-ZIP entries are allowlisted and use fixed metadata; source text is normalized to LF. Packaging must reproduce byte-for-byte from the same source and dependencies. There are no absolute machine paths or build timestamps in the manifest. Stale artifacts for another version make verification fail; archive them elsewhere before preparing a different version.
+ZIP documentation preserves its original paths, including recording/icon notices and the separately replaceable encoder, full GNU licence texts and exact upstream source archive. The HTML independently embeds the same notices/source download. The [encoder instructions](../vendor/lamejs/README.md) explain replacement and rebuilding. MIT covers only original code/artwork.
 
-## Clean Checkout Gate
+After committing reviewed changes, clone locally into a clean temporary directory, install locked tools and run `npm run release:prepare`. Compare `dist/SHA256SUMS.txt` with the primary checkout. Generated or ancestor files must not be required. Changing a version requires aligned package/lock/changelog/release notes and removal or archival of stale generated artifacts.
 
-After committing the reviewed source, clone the local repository into a new temporary folder. Run `npm ci --ignore-scripts`, `npm run release:prepare` and compare its `dist/SHA256SUMS.txt` with the primary checkout. This checks that ignored/generated files or ancestor dependencies are not needed for packaging.
+## Manual Acceptance
 
-## Manual Browser Gate
+1. Open the portable HTML directly from disk in intended browsers; check no autoplay/network dependencies and embedded credits/version.
+2. Audition all methods and environmental loop transitions at comfortable volume.
+3. Check pause, sweep/stages, fades/Stop, mute/solo, pan and JSON backup/import.
+4. Export WAV and MP3 through download and native Save As where supported. Test cancel and confirm no completed partial audio file is saved.
+5. Check mobile/Safari/macOS listening before claiming support there. Responsive automated layouts are not listening validation.
 
-Before public release, check the release HTML directly from disk in the intended browsers:
-
-1. Confirm Hz Mixer branding and version in the embedded credits.
-2. Confirm no autoplay, no runtime network requests, and usable controls at narrow widths.
-3. Audition all three methods and ambient loop transitions at comfortable device volume.
-4. Test sweeps, pause/resume, stages, fade/stop, noise, mute/solo and balance.
-5. Save/reload a mix, and transfer a JSON backup from the old file.
-6. Export a WAV using both ordinary download and native Save As where supported; confirm cancellation does not commit a partial file.
-
-Automated browser checks cover editable source over loopback HTTP. The in-app browser automation policy blocks file-origin launching, so this is a real acceptance gap, not an automatically verified property. The streaming writer is tested; the native OS file-save dialog is not automated.
+Automated Firefox checks use loopback HTTP, not file-origin playback. The native OS picker and perceptual loop quality are not automated. Hosted CI/live Pages are separate checks, not implied by local success.
 
 ## Publish Only After Authorization
 
-1. Confirm the intended GitHub account/repository, source licence, version and manual acceptance results. Review the local commits' author name/email for public-history privacy before uploading.
-2. Obtain explicit approval to create/connect a remote and push. No remote is assumed in this local preparation.
-3. Run hosted CI and inspect completed results; local runs alone are not a passed GitHub check.
-4. Obtain explicit authorization for the release/tag, then use the reviewed commit and matching version.
-5. Use the prepared release notes and attach only verified `dist/` assets. Do not upload QA logs, browser profiles, development directories or saved listening data.
+1. Review the existing Git author/email for public-history privacy. Do not silently rewrite authors or history.
+2. Obtain explicit approval to create/connect `agentcarlosian/hz-mixer` and push. The human has not yet authorized pushing.
+3. Run hosted validation CI and inspect its completed results.
+4. Configure Pages source as GitHub Actions and protect the `github-pages` environment. Obtain approval to deploy, then manually run the Pages workflow on reviewed `main` with its publish checkbox.
+5. Verify the real HTTPS project URL, assets, browser console, audio and export before changing the README's not-published status to an active app link.
+6. Obtain separate release/tag approval and attach only matching verified `dist/` assets.
 
-## Evidence and Recovery
-
-Record actual completed checks in `docs/plan.md`. Keep generated QA reports in ignored `output/`, not source history. Checksums detect corruption but are not digital signatures; unsigned local artifacts do not establish publisher identity.
-
-Do not overwrite the old project or its original portable file. Use JSON backup/import for listening-state recovery and regenerate from a reviewed commit for release-artifact recovery. No formal support SLA or hosted service is implied.
+Keep QA logs, profiles, saved listening data and internal design drafts out of uploads. Checksums detect corruption, not publisher identity; they are not digital signatures. Keep the old project intact and use JSON backups for recovery. No backend or support SLA is implied.

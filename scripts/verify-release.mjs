@@ -1,17 +1,19 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { createReleaseArchive, validateReleaseArchive, releaseFiles, checksums, normalizeText } from './release-lib.mjs';
+import { createReleaseArchive, validateReleaseArchive, releaseFiles, checksums, normalizeText, releaseEntries } from './release-lib.mjs';
+import { relativeLinkErrors } from './links.mjs';
 
 const root = new URL('../', import.meta.url);
 const metadata = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
 const archiveName = 'hz-mixer-' + metadata.version + '.zip';
-const sources = { 'Hz Mixer.html': 'Hz Mixer.html', 'README.txt': 'docs/release-readme.txt', LICENSE: 'LICENSE', 'THIRD_PARTY_NOTICES.md': 'THIRD_PARTY_NOTICES.md', 'AUDIO_SOURCES.md': 'assets/audio/SOURCES.md', 'ICON_LICENSE.txt': 'assets/icons/LICENSE' };
+const expected = await releaseEntries(root);
 const files = {};
 for (const name of [archiveName, 'Hz Mixer.html', 'release-manifest.json', 'RELEASE_NOTES.md']) files[name] = await readFile(new URL('dist/' + name, root));
 assert.deepEqual((await readdir(new URL('dist/', root))).sort(), [...Object.keys(files), 'SHA256SUMS.txt'].sort(), 'Remove stale artifacts before preparing a different release version.');
 assert.equal(await readFile(new URL('dist/SHA256SUMS.txt', root), 'utf8'), checksums(files));
 const { contents } = validateReleaseArchive(files[archiveName], metadata.version, metadata.license);
-for (const name of releaseFiles) assert.deepEqual(Buffer.from(contents[name]), Buffer.from(normalizeText(await readFile(new URL(sources[name], root), 'utf8'))), name + ' differs from its source');
+for (const name of releaseFiles) assert.deepEqual(Buffer.from(contents[name]), expected[name], name + ' differs from its source');
+assert.deepEqual(relativeLinkErrors(contents), [], 'Broken relative documentation link in release archive');
 assert.deepEqual(files['Hz Mixer.html'], Buffer.from(contents['Hz Mixer.html']));
 assert.deepEqual(files['release-manifest.json'], Buffer.from(contents['release-manifest.json']));
 assert.deepEqual(files['RELEASE_NOTES.md'], Buffer.from(normalizeText(await readFile(new URL('docs/releases/v' + metadata.version + '.md', root), 'utf8'))));

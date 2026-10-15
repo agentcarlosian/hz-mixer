@@ -1,12 +1,12 @@
 # Contributing
 
-Hz Mixer is a local, browser-based audio tool. Keep runtime behavior dependency-free and usable from a single HTML file. New functionality must not require accounts, remote asset loading or a backend.
+Hz Mixer is a browser-local audio tool with static web and standalone HTML builds. The only runtime library is the explicitly vendored, separately replaceable MP3 encoder. New functionality must not require accounts, a runtime CDN or a backend.
 
 ## Setup and Checks
 
 Use Node.js 24. Run `npm ci --ignore-scripts`, `npm run check` and `npm test`. For the editable source preview, run `npm run dev`; it binds to loopback only. Run `npx playwright install firefox` and `npm run test:browser` for the isolated browser suite. On Linux, Playwright may require system packages (`npx playwright install --with-deps firefox`).
 
-Do not edit generated `Hz Mixer.html` or `dist/` files by hand. Modify source and regenerate. Tests rebuild the standalone automatically. Runtime code lives in `src/`, styling in `styles.css`, and UI markup in `index.html`.
+For normal development, modify source and regenerate rather than editing generated `Hz Mixer.html`, `_site/` or `dist/` files. Tests rebuild both distributions automatically. Runtime code lives in `src/`, styling in `styles.css`, and UI markup in `index.html`. Replacing the LGPL encoder in a generated HTML script block is supported; see [encoder replacement instructions](vendor/lamejs/README.md).
 
 ## Change Boundaries
 

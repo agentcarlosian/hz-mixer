@@ -3,3 +3,5 @@
 *.svg binary
 *.png binary
 *.zip binary
+*.gz binary
+vendor/lamejs/* -text

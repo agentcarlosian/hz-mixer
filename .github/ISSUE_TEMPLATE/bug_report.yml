@@ -20,8 +20,9 @@ body:
     attributes:
       label: Launch method
       options:
+        - GitHub Pages website
         - Portable HTML opened from disk
-        - Source preview over loopback HTTP
+        - Built-site preview over loopback HTTP
     validations:
       required: true
   - type: textarea

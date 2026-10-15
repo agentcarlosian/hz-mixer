@@ -11,4 +11,4 @@ Downloaded on 2026-10-05 from the creator's BigSoundBank pages. Joseph Sardin id
 
 License text: https://creativecommons.org/publicdomain/zero/1.0/
 
-These are MP3 versions of field recordings. The bundled original bytes are unchanged. Playback and WAV export decode them into new buffers with a 1.5-second equal-power overlap at each loop join; this shortens each playback loop slightly. Audition these processed loop transitions before a public release.
+These are MP3 versions of field recordings. The bundled original bytes are unchanged. Playback and audio export decode them into new buffers with a 1.5-second equal-power overlap at each loop join; this shortens each playback loop slightly. Audition these processed loop transitions before a public release.

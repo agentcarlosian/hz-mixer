@@ -1,0 +1,60 @@
+name: Deploy Hz Mixer Pages (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish the reviewed main branch to GitHub Pages'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main' && inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24.13.0'
+          package-manager-cache: false
+      - name: Install locked tools
+        run: npm ci --ignore-scripts --no-fund
+      - name: Validate both distributions
+        run: npm run release:prepare
+      - name: Install isolated Firefox
+        run: npx playwright install --with-deps firefox
+      - name: Test the built site at its project prefix
+        run: npm run test:browser
+      - name: Upload only the allowlisted site
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: _site
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy reviewed site
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

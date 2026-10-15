@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#20382f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Waterfall over a cliff into a pool</title>
+  <path d="M4 8h11m18 0h11M15 8v19l-4 4H5m28-23v23l5 4h6"/>
+  <path d="M4 8v10l5 3v7m35-20v14l-5 3v6" opacity=".6"/>
+  <path d="M15 8c5 2 13 2 18 0M18 12v16c0 3-2 4-3 6m9-21v18m6-19v14c0 4 2 5 3 8"/>
+  <path d="m20 35 2 2m6-2-2 2M4 37c5-3 9-1 12 1s7 2 10 0 7-2 10 0 5 2 8 0M8 43c6-2 10 1 16 1s10-3 16-1"/>
+</svg>

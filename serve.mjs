@@ -3,8 +3,9 @@ import { readFile, stat } from "node:fs/promises";
 import { dirname, extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = dirname(fileURLToPath(import.meta.url));
+const root = resolve(dirname(fileURLToPath(import.meta.url)), process.argv.includes('--site') ? '_site' : '.');
 const port = Number(process.argv[2] || 5173);
+const prefix = process.argv.includes('--prefix') ? '/hz-mixer/' : '/';
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -13,6 +14,8 @@ const types = {
   ".svg": "image/svg+xml",
   ".md": "text/markdown; charset=utf-8",
   ".mp3": "audio/mpeg",
+  ".gz": "application/gzip",
+  ".txt": "text/plain; charset=utf-8",
 };
 
 const server = createServer(async (request, response) => {
@@ -23,7 +26,9 @@ const server = createServer(async (request, response) => {
   let target;
   try {
     const path = decodeURIComponent(new URL(request.url, "http://127.0.0.1").pathname);
-    target = resolve(root, `.${path === "/" ? "/index.html" : path}`);
+    if (!path.startsWith(prefix)) { response.writeHead(404).end(); return; }
+    const mounted = '/' + path.slice(prefix.length);
+    target = resolve(root, `.${mounted === "/" ? "/index.html" : mounted}`);
   } catch {
     response.writeHead(400).end();
     return;
@@ -50,5 +55,5 @@ const server = createServer(async (request, response) => {
     response.writeHead(404).end();
   }
 }).listen(port, "127.0.0.1", () => {
-  console.log(`Hz Mixer running at http://127.0.0.1:${server.address().port}/`);
+  console.log(`Hz Mixer running at http://127.0.0.1:${server.address().port}${prefix}`);
 });
