@@ -259,6 +259,18 @@ try {
     await page.locator('#cancel-export').click();
   }
   await page.locator('#theme-mode').selectOption('light'); await page.setViewportSize({ width: 1365, height: 1000 }); await page.screenshot({ path: fileURLToPath(new URL('roadmap-desktop-light.png', root)), fullPage: true });
+  for (const theme of ['light', 'dark']) {
+    await page.locator('#theme-mode').selectOption(theme);
+    for (const id of ['pink', 'brown']) {
+      const icon = page.locator('[data-sound="' + id + '"] .sound-icon img');
+      assert((await icon.getAttribute('src')).endsWith('/noise-' + id + '.svg'));
+      assert(await icon.isVisible(), id + ' artwork is visible on desktop');
+      const appearance = await icon.evaluate((img) => ({ filter: getComputedStyle(img).filter, opacity: getComputedStyle(img).opacity, background: getComputedStyle(img.parentElement).backgroundColor }));
+      assert.equal(appearance.filter, 'none'); assert.equal(appearance.opacity, '1');
+      evidence[theme + '-' + id + '-icon'] = appearance;
+    }
+    await page.locator('#noise-list').screenshot({ path: fileURLToPath(new URL('noise-icons-' + theme + '.png', root)) });
+  }
   assert.deepEqual(errors, []); assert.deepEqual(badResponses, []);
   assert(requests.filter((url) => /^https?:/.test(url)).every((url) => url.startsWith(previewUrl)), 'all app requests stay inside the project prefix');
   const artwork = [

@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultMix, normalizeMix, normalizeLibrary, audibleLayers, PRESETS } from '../src/mix-state.mjs';
+import { defaultMix, normalizeMix, normalizeLibrary, audibleLayers, PRESETS, NOISES } from '../src/mix-state.mjs';
+
+test('colored noise artwork matches its channel without changing stored audio state', () => {
+  assert.equal(NOISES.find(({ id }) => id === 'pink').icon, 'noise-pink');
+  assert.equal(NOISES.find(({ id }) => id === 'pink').color, 'pink');
+  assert.equal(NOISES.find(({ id }) => id === 'brown').icon, 'noise-brown');
+  assert.equal(NOISES.find(({ id }) => id === 'brown').color, 'brown');
+  assert.equal(NOISES.find(({ id }) => id === 'white').icon, 'audio-lines');
+  assert.deepEqual(normalizeMix(defaultMix()), defaultMix());
+});
 
 test('solo isolates enabled layers, with mute taking precedence', () => {
   const mix = defaultMix();

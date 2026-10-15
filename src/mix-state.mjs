@@ -7,8 +7,8 @@ export const SOUNDS = [
 
 export const NOISES = [
   { id: 'white', name: 'White noise', detail: 'Broadband', icon: 'audio-lines', color: 'blue' },
-  { id: 'pink', name: 'Pink noise', detail: 'Soft high frequencies', icon: 'audio-lines', color: 'coral' },
-  { id: 'brown', name: 'Brown noise', detail: 'Low-frequency emphasis', icon: 'audio-lines', color: 'teal' },
+  { id: 'pink', name: 'Pink noise', detail: 'Soft high frequencies', icon: 'noise-pink', color: 'pink' },
+  { id: 'brown', name: 'Brown noise', detail: 'Low-frequency emphasis', icon: 'noise-brown', color: 'brown' },
 ];
 export const BANDS = [
   { id: 'delta', name: 'Delta', min: .5, max: 4 },

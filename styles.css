@@ -203,7 +203,13 @@ progress::-moz-progress-bar { background: var(--accent); }
 #pulse-controls input { grid-column: 1 / -1; }
 .noise-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .noise-list .sound-row { padding: 12px; }
-.noise-list .sound-icon { display: none; }
+.noise-list .sound-icon { display: grid; width: 32px; height: 32px; }
+.noise-list .sound-icon img { width: 26px; height: 26px; }
+.sound-icon.pink { background: #f6e2eb; }
+.sound-icon.brown { background: #f1e6da; }
+[data-theme="dark"] .sound-icon.pink { background: #30232a; }
+[data-theme="dark"] .sound-icon.brown { background: #28211b; }
+.noise-list .sound-icon.pink img, .noise-list .sound-icon.brown img { filter: none; opacity: 1; }
 .noise-list .channel-strip { grid-template-columns: 1fr; gap: 8px; }
 .noise-list .channel-tools { justify-content: end; }
 .session-builder { padding: 24px 0; border-top: 1px solid var(--line); }

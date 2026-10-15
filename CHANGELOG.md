@@ -13,6 +13,7 @@ Initial Hz Mixer release, rebranded from the local Beat Mixer prototype.
 - Named mix storage, JSON export/import/backup and stereo WAV/MP3 rendering with progress/cancel and optional direct-to-file saving.
 - MP3 bitrate selection (128, 192, 256, 320 kbps) at 44.1/48 kHz, using a separately replaceable LGPL-3.0 encoder with full licences and exact upstream source.
 - Dark/light/system themes and responsive controls.
+- Pink and brown noise wave icons use matching colors in both themes and remain visible in the desktop noise mixer.
 - Simplified Hz Mixer header, an original mixer-and-waves mark and literal environment artwork, and a monitor-first layout with unnumbered Generator and Environment headings.
 - Locked development tooling, automated checks and reproducible, checksummed release packaging.
 - Public privacy documentation, archive/source link validation and a manual-only, main-restricted Pages deployment workflow. No public deployment has occurred.
