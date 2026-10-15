@@ -99,6 +99,10 @@ test('the standalone uses Hz Mixer branding, version metadata and legacy storage
   assert(html.includes('<title>Hz Mixer</title>'));
   assert(html.includes('<h1>Hz Mixer</h1>'));
   assert(html.includes('<meta name="application-version" content="' + metadata.version + '" />'));
+  const original = (await readFile(new URL('index.html', root), 'utf8')).replaceAll('\r\n', '\n');
+  assert.equal(script('theme-bootstrap'), original.match(/<script id="theme-bootstrap">([\s\S]*?)<\/script>/)[1]);
+  assert(html.includes('hz-mixer.theme.v2'));
+  for (const name of ['system', 'light', 'green', 'dark', 'cyberpunk', 'matrix']) assert(html.includes('<option value="' + name + '">'));
   assert(!html.includes('Beat Mixer'));
   for (const key of ['current', 'library', 'theme', 'favorites']) assert(html.includes('beat-mixer.' + key + '.v1'));
 });

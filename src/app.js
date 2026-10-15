@@ -11,7 +11,7 @@ $('#privacy-open').addEventListener('click', () => $('#privacy-dialog').showModa
 // Preserve legacy keys when upgrading on the same browser origin.
 const CURRENT_KEY = 'beat-mixer.current.v1';
 const LIBRARY_KEY = 'beat-mixer.library.v1';
-const THEME_KEY = 'beat-mixer.theme.v1';
+const THEME_KEY = 'hz-mixer.theme.v2';
 const FAVORITES_KEY = 'beat-mixer.favorites.v1';
 const allLayers = [...SOUNDS, ...NOISES];
 const layerConfig = (id) => mix.sounds[id] || mix.noise[id];
@@ -29,6 +29,7 @@ let suggestedName = typeof restored?.name === 'string' ? restored.name.slice(0, 
 let view = restored?.view === 'spectrum' ? 'spectrum' : 'waveform';
 let themePreference = document.documentElement.dataset.themePreference || 'system';
 const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+let canvasTheme = {};
 let favorites = new Set(Array.isArray(readStorage(FAVORITES_KEY)) ? readStorage(FAVORITES_KEY).filter((id) => PRESETS.some((p) => 'preset:' + p.id === id)) : []);
 let sessionState = 'Ready';
 let busy = false;
@@ -57,10 +58,9 @@ const frequencyFields = [
 
 function notify(message) { $('#storage-status').textContent = message; }
 function applyTheme() {
-  const dark = themePreference === 'dark' || (themePreference === 'system' && themeMedia.matches);
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  document.documentElement.dataset.themePreference = themePreference;
-  $('meta[name="theme-color"]').content = dark ? '#171b1a' : '#f5f7f6';
+  themePreference = window.hzMixerTheme.apply(themePreference, themeMedia.matches);
+  const styles = getComputedStyle(document.documentElement);
+  canvasTheme = Object.fromEntries(['grid', 'wave', 'spectrum', 'peak', 'program', 'marker'].map((name) => [name, styles.getPropertyValue('--canvas-' + name).trim()]));
   $('#theme-mode').value = themePreference;
   drawProgram();
 }
@@ -398,10 +398,10 @@ function drawProgram() {
   const rates = Array.from({ length: 129 }, (_, i) => programAt(mix, i / 128 * length).rate);
   const low = Math.min(...rates), range = Math.max(1, Math.max(...rates) - low);
   const y = (rate) => 66 - (rate - low) / range * 52;
-  drawing.strokeStyle = document.documentElement.dataset.theme === 'dark' ? '#8cdbbf' : '#16766b'; drawing.lineWidth = 2;
+  drawing.strokeStyle = canvasTheme.program; drawing.lineWidth = 2;
   drawing.beginPath(); rates.forEach((rate, i) => i ? drawing.lineTo(i / 128 * width, y(rate)) : drawing.moveTo(0, y(rate))); drawing.stroke();
   const position = mix.automation.kind === 'sweep' && mix.automation.sweep.repeat === 'pingpong' ? elapsed % length : Math.min(elapsed, length);
-  drawing.fillStyle = '#c8775b'; drawing.beginPath(); drawing.arc(position / length * (width - 8) + 4, y(current.rate), 4, 0, Math.PI * 2); drawing.fill();
+  drawing.fillStyle = canvasTheme.marker; drawing.beginPath(); drawing.arc(position / length * (width - 8) + 4, y(current.rate), 4, 0, Math.PI * 2); drawing.fill();
   const left = (mix.carrier - current.rate / 2).toFixed(3), right = (mix.carrier + current.rate / 2).toFixed(3);
   $('#signal-detail').textContent = mix.mode === 'off' ? 'Generator off' : mix.mode === 'isochronic' ? mix.carrier + ' Hz tone / ' + current.rate.toFixed(2) + ' pulses/second' : mix.mode === 'binaural' ? 'Left ' + left + ' Hz / Right ' + right + ' Hz' : left + ' + ' + right + ' Hz mixed to both ears';
 }
@@ -559,7 +559,7 @@ function drawScope(timestamp) {
   if (width < 1 || height < 1) return;
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   scope.clearRect(0, 0, width, height);
-  scope.strokeStyle = '#344b40';
+  scope.strokeStyle = canvasTheme.grid;
   scope.lineWidth = 1;
   for (let i = 1; i < 4; i += 1) {
     scope.beginPath(); scope.moveTo(0, height * i / 4); scope.lineTo(width, height * i / 4); scope.stroke();
@@ -579,11 +579,11 @@ function drawScope(timestamp) {
       const frequency = 30 * Math.pow(400, i / count);
       const bin = Math.min(spectrum.length - 1, Math.round(frequency * 2048 / rate));
       const barHeight = spectrum[bin] / 255 * height * .84;
-      scope.fillStyle = i < count * .65 ? '#7bc5a5' : '#d6be89';
+      scope.fillStyle = i < count * .65 ? canvasTheme.spectrum : canvasTheme.peak;
       scope.fillRect(i * width / count, height - barHeight, Math.max(1, width / count - 3 * ratio), Math.max(1, barHeight));
     }
   } else {
-    scope.beginPath(); scope.strokeStyle = '#81d7b2'; scope.lineWidth = 1.5 * ratio;
+    scope.beginPath(); scope.strokeStyle = canvasTheme.wave; scope.lineWidth = 1.5 * ratio;
     waveform.forEach((value, i) => {
       const x = i / (waveform.length - 1) * width;
       const y = height / 2 - value * height * .9;

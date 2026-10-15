@@ -18,7 +18,7 @@ Once published, open the website in a modern browser and press Play. Recordings 
 - Fixed rates, linear/smooth sweeps, once/hold or ping-pong, and up to 16 hold/sweep session stages.
 - Four field recordings plus white, pink and brown noise; independent level, mute, solo and balance.
 - Fade-in/out, crossfaded recording loops, and isochronic width, softness and depth.
-- System/light/dark themes, waveform/spectrum monitor, session progress and digital RMS meter.
+- Light, Green, black/purple Dark, Cyberpunk and Matrix themes, plus System; waveform/spectrum monitor, session progress and digital RMS meter.
 - Up to 30 named mixes and JSON mix/library backup with previewed import.
 - Stereo WAV (16-bit PCM) and MP3 (128/192/256/320 kbps), at 44.1 or 48 kHz, with progress/cancellation and optional direct-to-file saving.
 

@@ -42,6 +42,75 @@ try {
   assert((await page.locator('#credits-dialog').textContent()).includes('LGPL-3.0'));
   await page.locator('#credits-dialog button').click();
   await page.locator('#privacy-open').click(); assert(await page.locator('#privacy-dialog').isVisible()); await page.locator('#privacy-dialog button').click();
+  const legacyPage = await browser.newPage();
+  await legacyPage.addInitScript(() => localStorage.setItem('beat-mixer.theme.v1', '"dark"'));
+  await legacyPage.goto(previewUrl);
+  assert.equal(await legacyPage.locator('html').getAttribute('data-theme'), 'green');
+  assert.equal(await legacyPage.locator('#theme-mode').inputValue(), 'green');
+  await legacyPage.locator('#theme-mode').selectOption('dark'); await legacyPage.reload();
+  assert.equal(await legacyPage.locator('html').getAttribute('data-theme'), 'dark', 'new preference wins over legacy Dark');
+  assert.equal(await legacyPage.locator('#status').textContent(), 'Ready', 'theme reload does not autoplay');
+  await legacyPage.close();
+  await page.locator('input[name="program"][value="sweep"]').check();
+  const audioBeforeThemes = await page.evaluate(() => localStorage.getItem('beat-mixer.current.v1'));
+  const themeColors = { light: 'rgb(245, 247, 246)', green: 'rgb(23, 27, 26)', dark: 'rgb(8, 8, 11)', cyberpunk: 'rgb(9, 10, 14)', matrix: 'rgb(3, 7, 5)' };
+  for (const [theme, background] of Object.entries(themeColors)) {
+    await page.locator('#theme-mode').selectOption(theme);
+    assert.equal(await page.locator('html').getAttribute('data-theme'), theme);
+    const colors = await page.locator('html').evaluate((element) => {
+      const style = getComputedStyle(element), channel = document.querySelector('[data-sound="stream"]'), input = document.querySelector('#carrier-value');
+      return { background: style.backgroundColor, text: style.color, muted: style.getPropertyValue('--muted').trim(), surface: getComputedStyle(channel).backgroundColor, input: getComputedStyle(input).color, wave: style.getPropertyValue('--canvas-wave').trim() };
+    });
+    assert.equal(colors.background, background);
+    if (theme === 'green') { assert.equal(colors.surface, 'rgb(37, 46, 40)'); assert.equal(colors.input, 'rgb(224, 235, 227)'); }
+    const contrast = (a, b) => {
+      const luminance = (color) => {
+        const rgb = color.startsWith('#') ? color.slice(1).match(/../g).map((x) => parseInt(x, 16)) : color.match(/[\d.]+/g).slice(0, 3).map(Number);
+        return rgb.reduce((sum, value, i) => { const n = value / 255; return sum + (n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4) * [.2126, .7152, .0722][i]; }, 0);
+      };
+      const x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05);
+    };
+    assert(contrast(colors.text, colors.background) >= 4.5, theme + ' body contrast');
+    if (theme !== 'light') assert(contrast(colors.muted, colors.surface) >= 4.5, theme + ' muted text contrast');
+    evidence['theme-' + theme] = colors;
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector('#scope-canvas'); if (!canvas.width) return false;
+      const hex = getComputedStyle(document.documentElement).getPropertyValue('--canvas-wave').trim();
+      const color = hex.slice(1).match(/../g).map((part) => parseInt(part, 16)), context = canvas.getContext('2d');
+      if (context.strokeStyle !== hex) return false;
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      // The 1.5px waveform blends with the grid beneath its antialiased edges.
+      for (let i = 0; i < pixels.length; i += 4) if (pixels[i + 3] > 150 && color.every((n, c) => Math.abs(n - pixels[i + c]) < 36)) return true;
+      return false;
+    });
+    for (const width of [320, 390, 768, 1101, 1365]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const layout = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, bad: [...document.querySelectorAll('input, select, button, .sound-title h3')].filter((element) => element.getClientRects().length && (element.getBoundingClientRect().left < -1 || element.getBoundingClientRect().right > innerWidth + 1 || element.scrollWidth > element.clientWidth + 2)).map((element) => element.id || element.textContent) }));
+      assert(layout.scroll <= layout.width, theme + ' at ' + width + ': ' + JSON.stringify(layout)); assert.deepEqual(layout.bad, [], theme + ' at ' + width);
+      for (const id of ['pink', 'brown']) {
+        const icon = page.locator('[data-sound="' + id + '"] .sound-icon img'); assert(await icon.isVisible());
+        assert.equal(await icon.evaluate((element) => getComputedStyle(element).filter), 'none');
+      }
+      if (width === 390 || width === 1365) {
+        await page.locator('.topbar').scrollIntoViewIfNeeded();
+        await page.screenshot({ path: fileURLToPath(new URL('theme-' + theme + '-' + width + '.png', root)), fullPage: width === 1365 });
+      }
+    }
+    await page.locator('#open-export').click(); await page.locator('#export-format').selectOption('mp3');
+    assert(await page.locator('#export-dialog').evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth));
+    await page.locator('#cancel-export').click();
+    await page.reload(); assert.equal(await page.locator('#theme-mode').inputValue(), theme);
+    assert.equal(await page.locator('#status').textContent(), 'Ready');
+  }
+  assert.equal(await page.evaluate(() => localStorage.getItem('beat-mixer.current.v1')), audioBeforeThemes, 'themes must not change audio settings');
+  await page.locator('#theme-mode').selectOption('system');
+  await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+  await page.emulateMedia({ colorScheme: 'light' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+  await page.locator('#theme-mode').selectOption('green'); await page.emulateMedia({ colorScheme: 'dark' });
+  assert.equal(await page.locator('html').getAttribute('data-theme'), 'green');
+  await page.emulateMedia({ colorScheme: null });
+  await page.locator('#reset-mix').click(); await page.locator('#theme-mode').selectOption('light');
+  console.log('Theme migration, persistence, system changes, canvas pixels and responsive palettes passed');
   assert.equal(await page.title(), 'Hz Mixer');
   assert.equal(await page.locator('h1').textContent(), 'Hz Mixer');
   assert.equal(await page.locator('.brand').innerText(), 'Hz Mixer');

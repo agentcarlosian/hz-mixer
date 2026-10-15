@@ -10,15 +10,27 @@
   <title>Hz Mixer</title>
   <script id="theme-bootstrap">
     (() => {
+      const colors = { light: '#f5f7f6', green: '#171b1a', dark: '#08080b', cyberpunk: '#090a0e', matrix: '#030705' };
+      const apply = (preference, systemDark) => {
+        if (typeof preference !== 'string' || (preference !== 'system' && !Object.hasOwn(colors, preference))) preference = 'system';
+        const theme = preference === 'system' ? (systemDark ? 'dark' : 'light') : preference;
+        document.documentElement.dataset.themePreference = preference;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.colorScheme = theme === 'light' ? 'light' : 'dark';
+        document.querySelector('meta[name="theme-color"]').content = colors[theme];
+        return preference;
+      };
+      window.hzMixerTheme = Object.freeze({ apply });
       let preference = 'system';
       try {
-        const stored = JSON.parse(localStorage.getItem('beat-mixer.theme.v1'));
-        if (['system', 'light', 'dark'].includes(stored)) preference = stored;
+        const current = localStorage.getItem('hz-mixer.theme.v2');
+        if (current !== null) preference = JSON.parse(current);
+        else {
+          const legacy = JSON.parse(localStorage.getItem('beat-mixer.theme.v1'));
+          if (['system', 'light', 'dark'].includes(legacy)) preference = legacy === 'dark' ? 'green' : legacy;
+        }
       } catch { /* Follow the system if browser storage is unavailable. */ }
-      const dark = preference === 'dark' || (preference === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      document.documentElement.dataset.themePreference = preference;
-      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-      document.querySelector('meta[name="theme-color"]').content = dark ? '#171b1a' : '#f5f7f6';
+      apply(preference, window.matchMedia('(prefers-color-scheme: dark)').matches);
     })();
   </script>
   <link rel="icon" href="./assets/icons/mixer-waves.svg" />
@@ -28,7 +40,7 @@
   <div class="app-shell">
     <header class="topbar">
       <div class="brand"><span class="brand-mark"><img src="./assets/icons/mixer-waves.svg" alt="" /></span><h1>Hz Mixer</h1></div>
-      <div class="topbar-actions"><span class="local-tag"><i></i> Local session</span><label class="theme-field" for="theme-mode"><span>Theme</span><select id="theme-mode"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div>
+      <div class="topbar-actions"><span class="local-tag"><i></i> Local session</span><label class="theme-field" for="theme-mode"><span>Theme</span><select id="theme-mode"><option value="system">System</option><option value="light">Light</option><option value="green">Green</option><option value="dark">Dark</option><option value="cyberpunk">Cyberpunk</option><option value="matrix">Matrix</option></select></label></div>
     </header>
     <main>
       <section class="library-bar" aria-label="Mix library">

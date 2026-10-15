@@ -25,7 +25,13 @@ The four [recordings](../assets/audio/SOURCES.md) use derived crossfaded loops; 
 
 Search/filter the 37 presets, favorite them, or save up to 30 named mixes. Saving an existing name updates that mix. JSON mix exports contain the current settings; library backups include saved mixes, current settings and preset favorites. Import previews contents before merge/replace; it does not change the current audio. Theme is separate from audio backups.
 
-Storage belongs to the browser and origin/file location. Export a Library backup before changing browsers, moving a portable file or switching between the website and offline version. Legacy Beat Mixer JSON files and storage keys remain supported. See [privacy](privacy.md).
+Storage belongs to the browser and origin/file location. Export a Library backup before changing browsers, moving a portable file or switching between the website and offline version. Legacy Beat Mixer JSON files and mix storage keys remain supported. See [privacy](privacy.md).
+
+## Appearance
+
+Choose System, Light, Green, Dark, Cyberpunk or Matrix in the header. Green retains the original dark-green palette. Dark uses a near-black background and purple shades; Cyberpunk uses cyan/yellow/magenta accents; Matrix uses black/green and terminal typography. Monitor colors follow each palette. None adds flashing or animated background effects.
+
+System follows the device's light/dark preference and uses the new Dark palette at night. A saved selection of the old Dark theme migrates to Green, preserving that explicit choice. Theme preferences use a separate versioned key and do not change audio, saved mixes or JSON backups. Pink/brown noise icons retain their identifying colors in every theme.
 
 ## Audio Export
 
