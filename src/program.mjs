@@ -131,7 +131,11 @@ export function scheduleEnvelope(parameter, mix, from, until, contextStart = 0, 
   const points = [from, until, fadeIn, duration - fadeOut, duration].filter((time) => time >= from && time <= until && time >= 0);
   const ordered = [...new Set(points)].sort((a, b) => a - b);
   parameter.setValueAtTime(envelopeAt(mix, from, duration), contextStart);
-  for (const time of ordered.slice(1)) parameter.linearRampToValueAtTime(envelopeAt(mix, time, duration), contextStart + time - from);
+  for (const time of ordered.slice(1)) {
+    const value = envelopeAt(mix, time, duration), when = contextStart + time - from;
+    if (duration && !fadeOut && time === duration) parameter.setValueAtTime(value, when);
+    else parameter.linearRampToValueAtTime(value, when);
+  }
 }
 
 export function signalError(mix) {

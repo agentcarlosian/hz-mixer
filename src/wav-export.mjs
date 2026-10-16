@@ -46,6 +46,18 @@ export function checkExportCancelled(signal) {
   if (signal?.aborted) throw new DOMException('Export cancelled', 'AbortError');
 }
 
+// Detach this export without cancelling a download shared with live playback.
+export function waitForExport(task, signal) {
+  if (!signal) return Promise.resolve(task);
+  return new Promise((resolve, reject) => {
+    const finish = (callback, value) => { signal.removeEventListener('abort', abort); callback(value); };
+    const abort = () => finish(reject, new DOMException('Export cancelled', 'AbortError'));
+    signal.addEventListener('abort', abort, { once: true });
+    Promise.resolve(task).then((value) => finish(resolve, value), (error) => finish(reject, error));
+    if (signal.aborted) abort();
+  });
+}
+
 export async function* renderPcm(value, seconds, sampleRate, loadBuffer, onProgress, signal, chunkSeconds = 20) {
   const mix = normalizeMix(value);
   const error = wavError(mix, seconds, sampleRate); if (error) throw new Error(error);
@@ -53,7 +65,7 @@ export async function* renderPcm(value, seconds, sampleRate, loadBuffer, onProgr
   const cancelled = () => checkExportCancelled(signal);
   cancelled(); onProgress(0, 'Loading audio');
   const audible = audibleLayers(mix), buffers = new Map();
-  for (const { id } of [...SOUNDS, ...NOISES]) if (audible.has(id)) { cancelled(); buffers.set(id, await loadBuffer(id)); }
+  for (const { id } of [...SOUNDS, ...NOISES]) if (audible.has(id)) { cancelled(); buffers.set(id, await waitForExport(loadBuffer(id), signal)); }
   const frames = Math.round(seconds * sampleRate);
   const blockSize = Math.round(chunkSeconds * sampleRate);
   for (let start = 0; start < frames; start += blockSize) {

@@ -3,6 +3,7 @@ import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { firefox } from 'playwright';
 import { spawn } from 'node:child_process';
+import { releaseRegressions } from './browser-regressions.mjs';
 const browser = await firefox.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1365, height: 1000 }, acceptDownloads: true });
 page.setDefaultTimeout(20000);
@@ -28,6 +29,7 @@ const setRange = async (selector, value) => page.locator(selector).evaluate((inp
 const commit = async (selector, value) => { await page.locator(selector).fill(String(value)); await page.locator(selector).press('Tab'); };
 try {
   const previewUrl = await startPreview();
+  await releaseRegressions(browser, previewUrl, root);
   await page.addInitScript(() => {
     const original = AudioContext.prototype.createAnalyser;
     AudioContext.prototype.createAnalyser = function () { const node = original.call(this); if (!window.__qa) window.__qa = { context: this, analyser: node, counter: 0, controls: [] }; return node; };
@@ -287,10 +289,23 @@ try {
   await page.locator('#cancel-export').click();
   console.log('UI MP3 export, decoded stereo frequencies and cancel passed', evidence.mp3Download);
   evidence.offline = await page.evaluate(async () => {
-    const { defaultMix } = await import(new URL('src/mix-state.mjs', location.href)); const { renderWav } = await import(new URL('src/wav-export.mjs', location.href));
+    const { defaultMix, normalizeMix } = await import(new URL('src/mix-state.mjs', location.href)); const { renderWav } = await import(new URL('src/wav-export.mjs', location.href));
+    const { sessionSeconds, programAt } = await import(new URL('src/program.mjs', location.href));
     const { AudioEngine } = await import(new URL('src/audio-engine.js', location.href));
     const engine = new AudioEngine(); engine.update(defaultMix());
     const results = [];
+    for (const fadeIn of [0, 3]) for (const fadeOut of [0, 5]) {
+      const mix = defaultMix(); mix.sounds.stream.enabled = false; mix.fades = { in: fadeIn, out: fadeOut };
+      const full = new DataView(await (await renderWav(mix, 30, 44100, (id) => engine.buffer(id), () => {}, null, 30)).arrayBuffer());
+      const split = new DataView(await (await renderWav(mix, 30, 44100, (id) => engine.buffer(id), () => {}, null, 20)).arrayBuffer());
+      let difference = 0, peakDiff = 0;
+      for (let i = 44; i < full.byteLength; i += 2) { const delta = (full.getInt16(i, true) - split.getInt16(i, true)) / 32768; difference += delta ** 2; peakDiff = Math.max(peakDiff, Math.abs(delta)); }
+      const rmsAt = (data, time) => { let sum = 0; for (let i = 0; i < 4410; i++) sum += (data.getInt16(44 + (Math.round(time * 44100) + i) * 4, true) / 32768) ** 2; return Math.sqrt(sum / 4410); };
+      const diff = Math.sqrt(difference / ((full.byteLength - 44) / 2));
+      if (diff > .001) throw new Error('Fade combination changes with render blocks');
+      if (!fadeOut && Math.abs(rmsAt(split, 15) - rmsAt(split, 27)) > .001) throw new Error('Zero fade-out must hold amplitude');
+      results.push({ mode: 'fade amplitude/chunk equivalence', fadeIn, fadeOut, diff, rms: rmsAt(split, 15), peakDiff, rms15: rmsAt(split, 15), rms27: rmsAt(split, 27) });
+    }
     for (const mode of ['binaural', 'monaural', 'isochronic']) {
       const mix = defaultMix(); mix.mode = mode; mix.carrier = 203; mix.beat = 7.83; mix.sounds.stream.enabled = false;
       mix.automation.kind = 'sweep'; mix.automation.sweep = { start: 7.83, end: 12.21, seconds: 15, curve: 'smooth', repeat: 'pingpong' }; mix.fades = { in: .1, out: .2 };
@@ -310,17 +325,19 @@ try {
     const { renderMp3 } = await import(new URL('src/mp3-export.mjs', location.href));
     const programmed = defaultMix(); programmed.mode = 'isochronic'; programmed.noise.pink.enabled = true;
     programmed.automation.kind = 'sequence'; programmed.automation.stages = [
-      { type: 'hold', start: 7.83, end: 7.83, seconds: 2, curve: 'linear' },
-      { type: 'sweep', start: 7.83, end: 12, seconds: 4, curve: 'smooth' },
+      { type: 'hold', start: 7.83, end: 7.83, seconds: 5, curve: 'linear' },
+      { type: 'sweep', start: 7.83, end: 12, seconds: 5, curve: 'smooth' },
     ];
     programmed.fades = { in: .2, out: .3 };
+    const normalized = normalizeMix(programmed), seconds = sessionSeconds(normalized);
+    if (seconds !== 10 || programAt(normalized, 4.99).rate !== 7.83 || programAt(normalized, 5).stage !== 1 || Math.abs(programAt(normalized, 7.5).rate - 9.915) > 1e-9 || programAt(normalized, 10).rate !== 12) throw new Error('MP3 fixture must cover valid stage boundaries and endpoints');
     const progress = [];
-    const encoded = await renderMp3(programmed, 6, 48000, 192, (id) => engine.buffer(id), (value) => progress.push(value), null, 1);
+    const encoded = await renderMp3(programmed, seconds, 48000, 192, (id) => engine.buffer(id), (value) => progress.push(value), null, 1);
     const encodedBytes = new Uint8Array(await encoded.arrayBuffer()), streamedParts = [];
-    const mp3Sink = await renderMp3(programmed, 6, 48000, 192, (id) => engine.buffer(id), () => {}, null, 1, { async write(bytes) { streamedParts.push(...Uint8Array.from(bytes)); } });
+    const mp3Sink = await renderMp3(programmed, seconds, 48000, 192, (id) => engine.buffer(id), () => {}, null, 1, { async write(bytes) { streamedParts.push(...Uint8Array.from(bytes)); } });
     if (mp3Sink !== null || streamedParts.length !== encodedBytes.length || streamedParts.some((value, i) => value !== encodedBytes[i])) throw new Error('MP3 stream/Blob mismatch');
     const decoded = await engine.context.decodeAudioData(encodedBytes.buffer);
-    if (decoded.numberOfChannels !== 2 || decoded.duration < 6 || decoded.duration > 6.15) throw new Error('MP3 block continuity/padding failed');
+    if (decoded.numberOfChannels !== 2 || decoded.duration < seconds || decoded.duration > seconds + .15) throw new Error('MP3 block continuity/padding failed');
     if (progress.some((value, i) => i > 0 && value < progress[i - 1]) || progress.at(-1) !== 1) throw new Error('MP3 progress is not monotonic');
     const abort = new AbortController(); let cancelled = false;
     try { await renderMp3(programmed, 6, 48000, 192, (id) => engine.buffer(id), (value) => { if (value > 0) abort.abort(); }, abort.signal, 1); }

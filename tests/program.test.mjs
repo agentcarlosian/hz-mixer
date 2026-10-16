@@ -55,6 +55,25 @@ test('short-session fades never overlap and timer end is silent', () => {
   assert.equal(envelopeAt(mix, 100, 0), 1);
 });
 
+test('scheduled gain matches the envelope for zero/nonzero fades and partial blocks', () => {
+  for (const fadeIn of [0, 3]) for (const fadeOut of [0, 5]) {
+    const mix = defaultMix(); mix.duration = 30; mix.fades = { in: fadeIn, out: fadeOut };
+    for (const [from, until] of [[0, 30], [0, 20], [17, 30], [29, 31], [31, 40]]) {
+      const events = [];
+      scheduleEnvelope({ setValueAtTime: (value, time) => events.push({ value, time, type: 'set' }), linearRampToValueAtTime: (value, time) => events.push({ value, time, type: 'ramp' }) }, mix, from, until);
+      const scheduledAt = (time) => {
+        let previous = events[0];
+        for (const next of events.slice(1)) {
+          if (time < next.time) return next.type === 'set' ? previous.value : previous.value + (next.value - previous.value) * (time - previous.time) / (next.time - previous.time);
+          previous = next;
+        }
+        return previous.value;
+      };
+      for (let time = from; time <= until; time += .25) assert(Math.abs(scheduledAt(time - from) - envelopeAt(mix, time)) < 1e-9, JSON.stringify({ fadeIn, fadeOut, from, until, time }));
+    }
+  }
+});
+
 test('legacy snapshots get new defaults; malformed stages and fields are bounded', () => {
   const mix = normalizeMix({ mode: 'binaural', beat: 7.83, carrier: 20 });
   assert.equal(mix.automation.kind, 'fixed'); assert.equal(mix.fades.in, 3); assert.equal(mix.noise.pink.enabled, false);

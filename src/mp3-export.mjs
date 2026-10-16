@@ -1,5 +1,5 @@
 import { normalizeMix } from './mix-state.mjs';
-import { renderPcm, wavError, checkExportCancelled } from './wav-export.mjs';
+import { renderPcm, wavError, checkExportCancelled, waitForExport } from './wav-export.mjs';
 import { loadMp3Encoder } from './resources.js';
 
 export const MP3_BITRATES = [128, 192, 256, 320];
@@ -19,7 +19,7 @@ export async function renderMp3(value, seconds, sampleRate, bitrate, loadBuffer,
   const mix = normalizeMix(value), error = mp3Error(mix, seconds, sampleRate, bitrate);
   if (error) throw new Error(error);
   checkExportCancelled(signal); onProgress(0, 'Loading MP3 encoder');
-  const Mp3Encoder = await loadMp3Encoder();
+  const Mp3Encoder = await waitForExport(loadMp3Encoder(), signal);
   checkExportCancelled(signal);
   // One stereo encoder spans every render block; never downmix binaural channels.
   const encoder = new Mp3Encoder(2, sampleRate, bitrate), parts = sink ? null : [];

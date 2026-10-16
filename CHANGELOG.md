@@ -20,3 +20,13 @@ Initial Hz Mixer release, rebranded from the local Beat Mixer prototype.
 - Public privacy documentation, archive/source link validation and a manual-only, main-restricted Pages deployment workflow. No public deployment has occurred.
 
 Candidate status is not evidence of publication or a passed hosted CI run. See the release runbook for manual acceptance gaps.
+
+### Audit Fixes
+
+- Zero fade-out now holds level until the final stop, including across offline render blocks.
+- Cancelling export detaches from held recording/encoder loads while preserving shared playback/cache consumers.
+- Session editing preserves keyboard focus; stage-only timer options cannot change a Fixed timer unexpectedly.
+- Save, Export, Import, Privacy and Credits dialogs expose accessible names.
+- Library replacement clears mismatched saved selections; capacity-aware import previews support full 30-mix backups safely.
+- Release verification checks both built outputs against current source, with regressions for stale/tampered files.
+- Preview path checks cover canonical Windows aliases as well as letter case, preserving loopback-only serving.

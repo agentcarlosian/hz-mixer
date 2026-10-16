@@ -43,4 +43,8 @@ WAV is stereo 16-bit PCM at 44.1/48 kHz. MP3 uses the same sample-rate options a
 
 Duration is 1 second-2 hours. Session export duration is the stage total; other programs let you choose duration. Ordinary downloads retain encoded chunks in browser memory, not the entire uncompressed session. Direct-to-file saving appears only where supported. Cancel waits for the current offline rendering/decoding block; MP3 encoding yields in smaller batches. A cancelled direct writer is aborted rather than committed, but the native browser/OS picker must be manually checked.
 
+Cancelling during a recording/encoder load returns control without waiting for the shared download to finish. Shared loading may continue for live playback or cache reuse. A zero-second fade-out holds gain until a final stop rather than fading across the session.
+
+Import previews show the resulting saved-mix count before applying changes. If adding the backup's current mix would exceed 30 while the saved library fits, that optional entry is initially unchecked. Overflow disables Import without changing stored data. Replacing a saved entry never silently switches the current audio; retained settings become Custom if they no longer match the selected saved entry.
+
 The optional portable HTML contains everything needed offline. Direct file-origin behavior varies between browsers and remains a manual acceptance item. The website is static and not automatically cached for offline use. See the [main README](../README.md) for local builds and known verification gaps.

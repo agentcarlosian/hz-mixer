@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pulseValue, noiseData, crossfadeData } from '../src/audio-graph.mjs';
 import { defaultMix, audibleLayers } from '../src/mix-state.mjs';
-import { wavHeader, pcm16, wavError, exportSeconds } from '../src/wav-export.mjs';
+import { wavHeader, pcm16, wavError, exportSeconds, renderWav, waitForExport } from '../src/wav-export.mjs';
+import { getEventListeners } from 'node:events';
 import { AudioEngine } from '../src/audio-engine.js';
 
 test('engine settings are isolated snapshots and idle playback clocks stay frozen', () => {
@@ -64,4 +65,24 @@ test('WAV rejects silence and unbounded duration and derives program lengths', (
   mix.masterMuted = true; assert(wavError(mix, 30, 44100));
   mix.automation.kind = 'sequence'; assert.equal(exportSeconds(mix), 1500);
   mix.automation.kind = 'sweep'; assert.equal(exportSeconds(mix), 480);
+});
+
+test('cancelled export detaches from held audio without breaking a shared consumer', async () => {
+  let release;
+  const shared = new Promise((resolve) => { release = resolve; }), abort = new AbortController();
+  const waiting = renderWav(defaultMix(), 1, 44100, () => shared, () => {}, abort.signal);
+  abort.abort();
+  await assert.rejects(waiting, { name: 'AbortError' });
+  assert.equal(getEventListeners(abort.signal, 'abort').length, 0);
+  const consumer = shared.then((value) => value); release('available'); assert.equal(await consumer, 'available');
+});
+
+test('abort-aware waits clean listeners and handle late shared failures', async () => {
+  const abort = new AbortController(); assert.equal(await waitForExport(Promise.resolve(42), abort.signal), 42);
+  assert.equal(getEventListeners(abort.signal, 'abort').length, 0);
+  await assert.rejects(waitForExport(Promise.reject(new Error('load failed')), abort.signal), /load failed/);
+  let fail; const held = new Promise((resolve, reject) => { fail = reject; });
+  const detached = waitForExport(held, abort.signal); abort.abort();
+  await assert.rejects(detached, { name: 'AbortError' }); fail(new Error('late failure')); await Promise.resolve();
+  assert.equal(getEventListeners(abort.signal, 'abort').length, 0);
 });

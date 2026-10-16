@@ -15,7 +15,7 @@ export function replaceOnce(text, expected, replacement) {
 export async function creditsMarkup(portable = false) {
   const source = portable ? 'data:application/gzip;base64,' + (await readFile(new URL('vendor/lamejs/source.tar.gz', root))).toString('base64') : './vendor/lamejs/source.tar.gz';
   const section = async (title, path) => '<details><summary>' + title + '</summary><pre>' + escapeHtml(await read(path)) + '</pre></details>';
-  return '<dialog id="credits-dialog" class="credits-dialog"><form method="dialog"><h2>Credits and licences</h2><button class="button secondary">Close</button></form><p>Hz Mixer ' + escapeHtml(metadata.version) + '</p>'
+  return '<dialog id="credits-dialog" class="credits-dialog" aria-labelledby="credits-heading"><form method="dialog"><h2 id="credits-heading">Credits and licences</h2><button class="button secondary">Close</button></form><p>Hz Mixer ' + escapeHtml(metadata.version) + '</p>'
     + await section('Original source: MIT', 'LICENSE')
     + await section('Recordings: CC0', 'assets/audio/SOURCES.md')
     + await section('Icons and artwork', 'assets/icons/SOURCES.md')

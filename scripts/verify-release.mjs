@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { createReleaseArchive, validateReleaseArchive, releaseFiles, checksums, normalizeText, releaseEntries } from './release-lib.mjs';
 import { relativeLinkErrors } from './links.mjs';
+import { verifyBuilds } from './verify-builds.mjs';
 
 const root = new URL('../', import.meta.url);
 const metadata = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
+await verifyBuilds();
 const archiveName = 'hz-mixer-' + metadata.version + '.zip';
 const expected = await releaseEntries(root);
 const files = {};

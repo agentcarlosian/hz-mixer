@@ -145,6 +145,7 @@ function render(preserveInput = false) {
   if (![...$('#duration').options].some((o) => Number(o.value) === mix.duration)) $('#duration').append(new Option(formatTime(mix.duration), String(mix.duration)));
   $('#duration').value = mix.duration;
   $('#duration').disabled = mix.automation.kind === 'sequence';
+  if (mix.automation.kind !== 'sequence') $('#duration option[value="stages"]')?.remove();
   if (mix.automation.kind === 'sequence') {
     let option = $('#duration option[value="stages"]');
     if (!option) { option = new Option('', 'stages'); $('#duration').append(option); }
@@ -266,7 +267,9 @@ $('#play-button').addEventListener('click', togglePlayback);
 $('#stop-button').addEventListener('click', () => stopSession());
 document.addEventListener('visibilitychange', tickTimer);
 $('#duration').addEventListener('change', () => {
-  mix.duration = Number($('#duration').value);
+  const duration = Number($('#duration').value);
+  if (!Number.isFinite(duration) || (duration !== 0 && (duration < 30 || duration > 7200))) { render(); return; }
+  mix.duration = duration;
   changed();
 });
 for (const [id, key] of [['#master-level', 'master'], ['#tone-level', 'toneLevel']]) {
@@ -389,13 +392,23 @@ function renderProgram(preserveInput) {
   drawProgram();
 }
 function renderStages() {
-  $('#stage-list').innerHTML = mix.automation.stages.map((stage, i) => '<div class="stage-row" data-stage="' + i + '"><span class="stage-number">' + (i + 1) + '</span>' +
+  const list = $('#stage-list');
+  if (list.children.length !== mix.automation.stages.length) list.innerHTML = mix.automation.stages.map((stage, i) => '<div class="stage-row" data-stage="' + i + '"><span class="stage-number">' + (i + 1) + '</span>' +
     '<label class="compact-field">Type<select data-stage-key="type"><option value="hold"' + (stage.type === 'hold' ? ' selected' : '') + '>Hold</option><option value="sweep"' + (stage.type === 'sweep' ? ' selected' : '') + '>Sweep</option></select></label>' +
     '<label class="compact-field">Start Hz<input data-stage-key="start" type="number" min="0.5" max="40" step="0.01" value="' + stage.start.toFixed(2) + '" /></label>' +
     '<label class="compact-field">End Hz<input data-stage-key="end" type="number" min="0.5" max="40" step="0.01" value="' + stage.end.toFixed(2) + '"' + (stage.type === 'hold' ? ' disabled' : '') + ' /></label>' +
     '<label class="compact-field">Seconds<input data-stage-key="seconds" type="number" min="5" max="3600" step="1" value="' + stage.seconds + '" /></label>' +
     '<label class="compact-field">Curve<select data-stage-key="curve"' + (stage.type === 'hold' ? ' disabled' : '') + '><option value="linear"' + (stage.curve === 'linear' ? ' selected' : '') + '>Linear</option><option value="smooth"' + (stage.curve === 'smooth' ? ' selected' : '') + '>Smooth</option></select></label>' +
     '<div class="stage-actions">' + [['up', 'arrow-up', 'Move stage up', i === 0], ['down', 'arrow-down', 'Move stage down', i === mix.automation.stages.length - 1], ['remove', 'trash', 'Remove stage', mix.automation.stages.length === 1]].map(([action, icon, label, disabled]) => '<button class="icon-button" data-stage-action="' + action + '" title="' + label + '" aria-label="' + label + '"' + (disabled ? ' disabled' : '') + '><img src="' + iconUrl(icon) + '" alt="" /></button>').join('') + '</div></div>').join('');
+  for (const [i, stage] of mix.automation.stages.entries()) {
+    const row = list.children[i];
+    for (const key of ['type', 'start', 'end', 'seconds', 'curve']) {
+      const field = row.querySelector('[data-stage-key="' + key + '"]');
+      const value = key === 'start' || key === 'end' ? stage[key].toFixed(2) : String(stage[key]);
+      if (field.value !== value) field.value = value;
+      field.disabled = stage.type === 'hold' && (key === 'end' || key === 'curve');
+    }
+  }
 }
 function drawProgram() {
   if (mix.automation.kind === 'fixed') return;
@@ -522,11 +535,37 @@ $('#download-export').addEventListener('click', async () => {
   finally { exportAbort = null; $('#cancel-export').textContent = 'Close'; $('#cancel-export').disabled = false; renderExport(); }
 });
 let importData = null, importRequest = 0;
-$('#open-import').addEventListener('click', () => { importRequest++; importData = null; $('#import-file').value = ''; $('#import-error').textContent = ''; $('#import-summary').textContent = 'Select a mix or library backup.'; $('#import-preview').replaceChildren(); $('#confirm-import').disabled = true; $('#import-current-field').hidden = true; $('#import-dialog').showModal(); });
+function importedLibrary() {
+  const incoming = [...importData.entries];
+  if (importData.current && $('#import-current').checked) incoming.push({ id: crypto.randomUUID(), name: importData.current.name, mix: importData.current.mix });
+  return mergeImports(library, incoming, $('#import-action').value === 'replace', () => crypto.randomUUID());
+}
+function renderImportPreview(autoFit = false) {
+  if (!importData) return;
+  if (autoFit && importData.current && $('#import-current').checked) {
+    try { importedLibrary(); }
+    catch {
+      $('#import-current').checked = false;
+      try { importedLibrary(); } catch { $('#import-current').checked = true; }
+    }
+  }
+  try {
+    const next = importedLibrary();
+    $('#import-capacity').textContent = 'After import: ' + next.length + ' / 30 saved mixes.' + (importData.current && !$('#import-current').checked ? ' Current mix not included.' : '');
+    $('#import-error').textContent = ''; $('#confirm-import').disabled = false;
+  } catch (error) {
+    $('#import-capacity').textContent = 'Library limit: 30 saved mixes.';
+    $('#import-error').textContent = error.message; $('#confirm-import').disabled = true;
+  }
+}
+$('#import-action').addEventListener('change', () => renderImportPreview(true));
+$('#import-current').addEventListener('change', () => renderImportPreview());
+$('#open-import').addEventListener('click', () => { importRequest++; importData = null; $('#import-file').value = ''; $('#import-error').textContent = ''; $('#import-capacity').textContent = ''; $('#import-summary').textContent = 'Select a mix or library backup.'; $('#import-preview').replaceChildren(); $('#confirm-import').disabled = true; $('#import-current-field').hidden = true; $('#import-dialog').showModal(); });
 $('#cancel-import').addEventListener('click', () => $('#import-dialog').close());
 $('#import-file').addEventListener('change', async () => {
   const request = ++importRequest;
   importData = null; $('#confirm-import').disabled = true; $('#import-error').textContent = ''; $('#import-preview').replaceChildren();
+  $('#import-capacity').textContent = '';
   try {
     const file = $('#import-file').files[0]; if (!file) return;
     if (file.size > 1000000) throw new Error('Choose a JSON file smaller than 1 MB.');
@@ -536,18 +575,20 @@ $('#import-file').addEventListener('change', async () => {
     $('#import-summary').textContent = importData.entries.length + ' saved mixes / ' + importData.favorites.length + ' favorites' + (importData.current ? ' / current: ' + importData.current.name : '');
     for (const entry of importData.entries) { const item = document.createElement('li'); item.textContent = entry.name; $('#import-preview').append(item); }
     $('#import-current-field').hidden = !importData.current; $('#import-current').checked = true; $('#confirm-import').disabled = false;
+    renderImportPreview(true);
   } catch (error) { if (request === importRequest) $('#import-error').textContent = error.message; }
 });
 $('#confirm-import').addEventListener('click', () => {
   if (!importData) return;
   try {
-    const incoming = [...importData.entries];
-    if (importData.current && $('#import-current').checked) incoming.push({ id: crypto.randomUUID(), name: importData.current.name, mix: importData.current.mix });
     const replace = $('#import-action').value === 'replace';
-    const next = mergeImports(library, incoming, replace, () => crypto.randomUUID());
+    const next = importedLibrary();
     if (!writeLibrary(next)) throw new Error('This browser could not store the imported library.');
     library = next; favorites = new Set(replace ? importData.favorites : [...favorites, ...importData.favorites]); persistFavorites();
-    if (selectedMix.startsWith('saved:') && !library.some((e) => 'saved:' + e.id === selectedMix)) selectedMix = 'custom';
+    if (selectedMix.startsWith('saved:')) {
+      const selected = library.find((entry) => 'saved:' + entry.id === selectedMix);
+      if (!selected || selected.name !== suggestedName || JSON.stringify(selected.mix) !== JSON.stringify(mix)) selectedMix = 'custom';
+    }
     persistCurrent(); renderLibrary(); render(); $('#import-dialog').close(); notify('Imported library. Current audio unchanged.');
   } catch (error) { $('#import-error').textContent = error.message; }
 });

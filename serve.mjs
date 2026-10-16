@@ -1,9 +1,9 @@
 import { createServer } from "node:http";
-import { readFile, stat } from "node:fs/promises";
-import { dirname, extname, resolve, sep } from "node:path";
+import { readFile, stat, realpath } from "node:fs/promises";
+import { dirname, extname, resolve, sep, relative, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), process.argv.includes('--site') ? '_site' : '.');
+const root = await realpath(resolve(dirname(fileURLToPath(import.meta.url)), process.argv.includes('--site') ? '_site' : '.'));
 const port = Number(process.argv[2] || 5173);
 const prefix = process.argv.includes('--prefix') ? '/hz-mixer/' : '/';
 const types = {
@@ -17,6 +17,11 @@ const types = {
   ".gz": "application/gzip",
   ".txt": "text/plain; charset=utf-8",
 };
+
+function blockedPath(target) {
+  const path = relative(root, target);
+  return !path || path === '..' || path.startsWith('..' + sep) || isAbsolute(path) || path.split(sep).some((part) => part.startsWith('.') || ['node_modules', 'output', 'dist'].includes(part.toLowerCase()));
+}
 
 const server = createServer(async (request, response) => {
   if (request.method !== "GET" && request.method !== "HEAD") {
@@ -33,16 +38,13 @@ const server = createServer(async (request, response) => {
     response.writeHead(400).end();
     return;
   }
-  if (!target.startsWith(`${root}${sep}`)) {
-    response.writeHead(403).end();
-    return;
-  }
-  const relative = target.slice(root.length + 1).split(sep);
-  if (relative.some((part) => part.startsWith('.') || ['node_modules', 'output', 'dist'].includes(part))) {
+  if (blockedPath(target)) {
     response.writeHead(403).end();
     return;
   }
   try {
+    target = await realpath(target);
+    if (blockedPath(target)) { response.writeHead(403).end(); return; }
     if (!(await stat(target)).isFile()) throw new Error("Not a file");
     const body = await readFile(target);
     response.writeHead(200, {

@@ -14,7 +14,15 @@ test('loopback preview serves source and blocks hidden/development paths and mut
       child.stdout.on('data', (chunk) => { output += chunk; const match = output.match(/http:\/\/127\.0\.0\.1:\d+\//); if (match) { clearTimeout(timer); resolve(match[0]); } });
     });
     assert((await (await fetch(url)).text()).includes('<title>Hz Mixer</title>'));
-    for (const path of ['.git/config', '.env', '.github/workflows/ci.yml', 'node_modules/playwright/package.json', 'output/private.txt', 'dist/release-manifest.json', '%2e%2e%5coutside']) assert.equal((await fetch(url + path)).status, 403, path);
+    for (const path of ['.git/config', '.env', '.github/workflows/ci.yml', 'node_modules/playwright/package.json', 'output/private.txt', 'dist/release-manifest.json', '%2e%2e%5coutside', 'NODE_MODULES/playwright/package.json', '%4eODE_MODULES/playwright/package.json', 'OUTPUT/browser/roadmap-evidence.json', 'DIST/release-manifest.json']) assert.equal((await fetch(url + path)).status, 403, path);
+    if (process.platform === 'win32') {
+      const { realpath } = await import('node:fs/promises');
+      for (const path of ['NODE_M~1/playwright/package.json', 'GITHUB~1/workflows/ci.yml', 'GITIGN~1', 'node_modules::$INDEX_ALLOCATION/playwright/package.json', 'node_modules:$I30:$INDEX_ALLOCATION/playwright/package.json', 'NODE_M~1%5cplaywright%5cpackage.json']) {
+        try { await realpath(new URL('../' + decodeURIComponent(path).replaceAll('\\', '/'), import.meta.url)); }
+        catch (error) { if (['ENOENT', 'EINVAL'].includes(error.code)) continue; throw error; }
+        assert.equal((await fetch(url + path)).status, 403, path);
+      }
+    }
     assert.equal((await fetch(url, { method: 'POST' })).status, 405);
     const head = await fetch(url, { method: 'HEAD' }); assert.equal(head.status, 200); assert.equal(await head.text(), '');
     assert.equal((await fetch(url + 'unknown.txt')).status, 404);

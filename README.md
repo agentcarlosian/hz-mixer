@@ -69,7 +69,7 @@ Reports/screenshots go to ignored `output/browser/`. Portable HTML and release a
 
 ## Limits and Verification
 
-Exports are limited to 1 second-2 hours. Export renders a snapshot of current settings from the beginning, not the history of live edits. MP3 is lossy and adds codec delay/padding, so decoded duration can be slightly longer. WAV is the uncompressed reference. Long Blob downloads may use substantial memory; direct-to-file streaming is offered only where the browser supports it. Cancellation waits for the current rendering/decoding block, with shorter yields during MP3 encoding.
+Exports are limited to 1 second-2 hours. Export renders a snapshot of current settings from the beginning, not the history of live edits. MP3 is lossy and adds codec delay/padding, so decoded duration can be slightly longer. WAV is the uncompressed reference. Long Blob downloads may use substantial memory; direct-to-file streaming is offered only where the browser supports it. Cancellation detaches from pending asset loads without interrupting live playback; shared downloads may finish for cache reuse. An in-progress native render can finish its current block, with shorter yields during MP3 encoding.
 
 Automated checks cover the built web app over loopback HTTP, audio/state behavior, exports, embedded assets and deterministic packaging. Direct file-origin launch, native OS Save As, perceived loop quality and macOS/Safari/mobile listening remain manual acceptance items. Hosted CI and live GitHub Pages have not been run as part of local preparation.
 

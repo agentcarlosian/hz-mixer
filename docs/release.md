@@ -28,6 +28,8 @@ The built-site regression suite serves the actual `_site/` at `/hz-mixer/`. Chec
 - `SHA256SUMS.txt`
 - `RELEASE_NOTES.md`
 
+`release:verify` also regenerates expected web/portable content in memory from current source and compares it with the existing outputs. It rejects stale runtime edits and missing, changed or extra web files without rewriting those outputs. Run `npm run build` before preparing new release artifacts after a source change.
+
 ZIP documentation preserves its original paths, including recording/icon notices and the separately replaceable encoder, full GNU licence texts and exact upstream source archive. The HTML independently embeds the same notices/source download. The [encoder instructions](../vendor/lamejs/README.md) explain replacement and rebuilding. MIT covers only original code/artwork.
 
 After committing reviewed changes, clone locally into a clean temporary directory, install locked tools and run `npm run release:prepare`. Compare `dist/SHA256SUMS.txt` with the primary checkout. Generated or ancestor files must not be required. Changing a version requires aligned package/lock/changelog/release notes and removal or archival of stale generated artifacts.
