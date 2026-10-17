@@ -2,7 +2,7 @@
 
 ## Boundaries
 
-The primary public entry point is the static website, planned for `https://agentcarlosian.github.io/hz-mixer/`. It is not yet published. `_site/` is the only Pages upload directory; never upload the repository root, `dist/` or the portable HTML as the homepage.
+The primary public entry point is the static website. The expected project URL is `https://agentcarlosian.github.io/hz-mixer/`; verify it after deployment before adding an active website link to the README. `_site/` is the only Pages upload directory; never upload the repository root, `dist/` or the portable HTML as the homepage.
 
 The optional portable artifact is `Hz Mixer.html`. `dist/` contains the verified ZIP, HTML, manifest, checksum list and release notes. Dependencies, generated outputs and local QA evidence are ignored. npm publication is disabled. Local preparation never creates a remote, pushes, tags or deploys.
 
@@ -20,7 +20,7 @@ npm run test:browser
 npm run release:verify
 ```
 
-The built-site regression suite serves the actual `_site/` at `/hz-mixer/`. Check version metadata, relative resource URLs, lazy loading, Credits/Privacy and exports. ZIP verification checks the exact allowlist, source bytes, hashes, documentation links and deterministic metadata. Source text is LF-normalized; vendored encoder/source bytes are preserved. `dist/` must contain exactly:
+The built-site regression suite serves the actual `_site/` at `/hz-mixer/`. Check version metadata, relative resource URLs, lazy loading, Info/Guide/Credits/Privacy, the listening warning and exports. ZIP verification checks the exact allowlist, source bytes, hashes, documentation links and deterministic metadata. Source text is LF-normalized; vendored encoder/source bytes are preserved. `dist/` must contain exactly:
 
 - `hz-mixer-<version>.zip`
 - `Hz Mixer.html`
@@ -38,19 +38,28 @@ After committing reviewed changes, clone locally into a clean temporary director
 
 1. Open the portable HTML directly from disk in intended browsers; check no autoplay/network dependencies and embedded credits/version.
 2. Audition all methods and environmental loop transitions at comfortable volume.
-3. Check pause, sweep/stages, fades/Stop, mute/solo, pan and JSON backup/import.
+3. Check pause, sweep/stages, fades/Stop, mute/solo, pan and JSON backup/import. Open Info and the full guide; return to the mixer and confirm current audio/settings are unchanged. Check the warning before Play and the embedded offline guide's section links and Back navigation.
 4. Export WAV and MP3 through download and native Save As where supported. Test cancel and confirm no completed partial audio file is saved.
 5. Check mobile/Safari/macOS listening before claiming support there. Responsive automated layouts are not listening validation.
 
 Automated Firefox checks use loopback HTTP, not file-origin playback. The native OS picker and perceptual loop quality are not automated. Hosted CI/live Pages are separate checks, not implied by local success.
 
-## Publish Only After Authorization
+## Private Repository Review
 
-1. Review the existing Git author/email for public-history privacy. Do not silently rewrite authors or history.
-2. Obtain explicit approval to create/connect `agentcarlosian/hz-mixer` and push. The human has not yet authorized pushing.
-3. Run hosted validation CI and inspect its completed results.
-4. Configure Pages source as GitHub Actions and protect the `github-pages` environment. Obtain approval to deploy, then manually run the Pages workflow on reviewed `main` with its publish checkbox.
-5. Verify the real HTTPS project URL, assets, browser console, audio and export before changing the README's not-published status to an active app link.
-6. Obtain separate release/tag approval and attach only matching verified `dist/` assets.
+1. Review candidate files and all history that will be pushed, including deleted files, Git author/email, recordings, artwork and notices. Do not silently rewrite authors or history. Ignoring or deleting a file does not remove older committed copies.
+2. Obtain maintainer approval before creating/connecting `agentcarlosian/hz-mixer` and pushing. A private repository can be used to review rendered docs, hosted CI and candidate artifacts before public release.
+3. Leave Pages undeployed during private review. A private repository is not a guarantee of a private website; [GitHub Pages sites can be publicly accessible even when their repository is private](https://docs.github.com/en/pages/getting-started-with-github-pages/securing-your-github-pages-site-with-https).
+4. Inspect completed Linux/Windows CI results and download the candidate artifacts for acceptance. Check the README images and documentation links as rendered on GitHub.
+5. Review Actions logs and artifacts before changing visibility. [Actions history and logs become visible when a repository becomes public](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility).
+
+## Public Release and Pages
+
+1. Change repository visibility only after maintainer approval and private review. Recheck hosted protections after the change.
+2. Configure Pages source as GitHub Actions and protect the `github-pages` environment. Obtain approval to deploy, then manually run the Pages workflow on reviewed `main` with its publish checkbox.
+3. Verify the real HTTPS project URL, embedded/dedicated guide, assets, browser console, audio and export before adding an active website link to the README.
+4. Add the verified website, offline-release download and guide links near the top of the README. Do not add dead download links or unpublished-site placeholders.
+5. Obtain separate release/tag approval and attach only matching verified `dist/` assets.
 
 Keep QA logs, profiles, saved listening data and internal design drafts out of uploads. Checksums detect corruption, not publisher identity; they are not digital signatures. Keep the old project intact and use JSON backups for recovery. No backend or support SLA is implied.
+
+Local investigations and internal preparation diaries belong under ignored `output/`, never in deployment or release archives. The exact site/ZIP allowlists are the publication boundary; do not add diagnostic tools or their evidence to them.

@@ -293,3 +293,46 @@ progress::-moz-progress-bar { background: var(--accent); }
 .credits-dialog form h2 { margin: 0; }
 .credits-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.6 "Segoe UI", Arial, sans-serif; }
 .credits-dialog summary { cursor: pointer; font-weight: 600; }
+
+.topbar-actions { gap: 14px; }
+.listening-notice { display: flex; gap: 10px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); color: #675219; }
+.listening-notice > .icon { margin-top: 2px; opacity: .75; }
+.listening-notice p { margin: 0; font-size: 12px; line-height: 1.6; color: inherit; }
+.listening-notice strong { font-weight: 650; }
+.info-dialog { width: min(580px, calc(100% - 32px)); max-height: 90vh; overflow: auto; }
+.dialog-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.dialog-heading h2 { margin: 0; }
+.info-dialog > p { font-size: 13px; line-height: 1.7; color: #53665d; }
+.info-dialog .listening-notice { margin: 18px 0; border-bottom: 1px solid var(--line); }
+.info-definitions { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 10px 12px; font-size: 13px; line-height: 1.6; }
+.info-definitions dt { font-weight: 650; }
+.info-definitions dd { margin: 0; color: #53665d; }
+a.button, .guide-brand { text-decoration: none; }
+.guide-shell { max-width: 1200px; padding: 0 32px; margin: auto; position: relative; z-index: 1; }
+.guide-header { position: sticky; top: 0; z-index: 2; min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--line); background: var(--page, #f5f7f6); }
+.guide-brand { color: inherit; font-size: 19px; font-weight: 650; }
+.guide-layout { display: grid; grid-template-columns: 205px minmax(0, 1fr); gap: 48px; padding: 32px 0 48px; }
+.guide-toc { position: sticky; top: 116px; align-self: start; max-height: calc(100vh - 140px); overflow: auto; }
+.guide-toc h2 { margin: 0 0 12px; font-size: 13px; }
+.guide-toc ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 3px; }
+.guide-toc a { display: block; padding: 6px 0; font-size: 12px; line-height: 1.5; color: var(--muted); text-decoration: none; }
+.guide-toc a:hover { color: var(--accent); text-decoration: underline; }
+.guide-content { min-width: 0; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.guide-content h1 { margin: 0 0 14px; font-size: 28px; line-height: 1.25; }
+.guide-content h2 { margin: 36px 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 20px; line-height: 1.35; }
+.guide-content h3 { font-size: 16px; margin-top: 24px; }
+.guide-content h1, .guide-content h2, .guide-content h3 { scroll-margin-top: 112px; }
+.guide-content p { margin: 12px 0; }
+.guide-content li { margin: 7px 0; }
+.guide-content ul, .guide-content ol { padding-left: 24px; }
+.guide-content table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 13px; line-height: 1.65; margin: 18px 0; }
+.guide-content th, .guide-content td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.guide-content th { color: var(--accent); }
+.guide-content code { font-family: Consolas, monospace; font-size: 13px; }
+.guide-content > p:first-of-type { color: var(--muted); font-size: 15px; }
+[data-color-scheme="dark"] .listening-notice { color: #e5d193; }
+[data-color-scheme="dark"] .listening-notice > .icon { filter: invert(1); opacity: .85; }
+[data-color-scheme="dark"] .info-dialog > p, [data-color-scheme="dark"] .info-definitions dd { color: var(--dialog-text); }
+[data-color-scheme="dark"] .guide-brand { color: var(--text); }
+@media(max-width:720px) { .guide-shell { padding: 0 22px; }.guide-layout { grid-template-columns: minmax(0, 1fr); gap: 28px; }.guide-toc { position: static; max-height: none; border-bottom: 1px solid var(--line); padding-bottom: 20px; }.guide-toc ol { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; } }
+@media(max-width:480px) { .topbar-actions { gap: 7px; }.topbar-actions .icon-button { width: 30px; height: 32px; padding: 5px; }.brand { gap: 8px; }.brand-mark { width: 42px; height: 42px; }.theme-field select { width: 82px; }.guide-shell { padding: 0 18px; }.guide-header { min-height: 76px; }.guide-layout { padding-top: 24px; }.guide-content h1 { font-size: 25px; }.guide-content h1, .guide-content h2, .guide-content h3 { scroll-margin-top: 94px; }.info-definitions { grid-template-columns: 78px minmax(0, 1fr); gap: 8px; } }

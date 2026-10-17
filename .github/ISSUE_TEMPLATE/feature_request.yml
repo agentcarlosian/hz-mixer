@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose a focused improvement to the offline audio mixer.
+description: Propose a focused improvement to the browser audio mixer.
 title: "[Feature] "
 body:
   - type: textarea
@@ -12,6 +12,6 @@ body:
     id: proposal
     attributes:
       label: Proposed change and alternatives
-      description: Keep the single-file, local-only listening experience in mind. This project does not promise clinical effects or specific mental states.
+      description: Keep browser-local audio processing and both static web and portable builds in mind. This project does not promise clinical effects or specific mental states.
     validations:
       required: true

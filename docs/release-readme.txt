@@ -4,9 +4,14 @@ Open "Hz Mixer.html" in a modern desktop browser. No installer, local server,
 account or Internet connection is needed. Audio begins only after Play.
 Use stereo headphones for binaural mode and comfortable device volume.
 
-All recordings, icons, code, MP3 encoder, full notices and encoder source
+Use Hz Mixer only while sitting or lying down in a safe place. Do not use
+while driving, operating machinery, or where reduced alertness or altered
+awareness could cause injury. Start at a low, comfortable volume.
+
+All recordings, icons, code, the full guide, MP3 encoder, notices and source
 are embedded. The HTML can be used alone. Credits includes an exact encoder
 source download and instructions for replacing its separate script block.
+The header's info button opens a quick reference and the embedded full guide.
 
 Saved settings are browser/origin/file-location specific. Before moving from
 Beat Mixer, another browser or the website, export a Library backup there,
@@ -21,9 +26,8 @@ WAV is the uncompressed reference. Long downloads can use substantial memory.
 Direct-to-file saving is offered only in browsers that support it. Cancel
 waits for a rendering/decoding block; MP3 encoding yields more frequently.
 
-This is a listening/sound-design tool, not a medical device. Frequency labels
-describe sound, not guaranteed mental states or health outcomes. The meter
-measures digital audio, not volume at your ears. Stop if uncomfortable.
+The meter measures digital audio, not volume at your ears. Stop if
+uncomfortable. Mixer levels do not establish a safe headphone volume.
 No pulsed-light visuals are included.
 
 Known acceptance gaps: automated browser checks use HTTP, not direct file

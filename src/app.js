@@ -6,9 +6,12 @@ import { makeBackup, makeMixFile, parseBackup, mergeImports } from './library.mj
 import { renderWav, wavError, exportSeconds } from './wav-export.mjs';
 import { renderMp3, mp3Error } from './mp3-export.mjs';
 import { MatrixRain } from './matrix-rain.mjs';
+import { initializeGuide } from './guide.js';
 
 const $ = (selector) => document.querySelector(selector);
 $('#privacy-open').addEventListener('click', () => $('#privacy-dialog').showModal());
+$('#info-open').addEventListener('click', () => $('#info-dialog').showModal());
+$('#guide-link').addEventListener('click', () => $('#info-dialog').close());
 // Preserve legacy keys when upgrading on the same browser origin.
 const CURRENT_KEY = 'beat-mixer.current.v1';
 const LIBRARY_KEY = 'beat-mixer.library.v1';
@@ -71,7 +74,7 @@ function applyTheme() {
   const styles = getComputedStyle(document.documentElement);
   canvasTheme = Object.fromEntries(['grid', 'wave', 'spectrum', 'peak', 'program', 'marker'].map((name) => [name, styles.getPropertyValue('--canvas-' + name).trim()]));
   $('#theme-mode').value = themePreference;
-  matrixRain.setActive(document.documentElement.dataset.theme === 'matrix');
+  matrixRain.setActive(document.documentElement.dataset.theme === 'matrix' && !document.documentElement.hasAttribute('data-guide-open'));
   drawProgram();
 }
 $('#matrix-motion').addEventListener('click', () => {
@@ -655,3 +658,4 @@ renderLibrary();
 render();
 setInterval(tickTimer, 250);
 requestAnimationFrame(drawScope);
+initializeGuide(() => applyTheme());

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { firefox } from 'playwright';
 import { spawn } from 'node:child_process';
 import { releaseRegressions } from './browser-regressions.mjs';
+import { guideRegressions } from './browser-guide.mjs';
 const browser = await firefox.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1365, height: 1000 }, acceptDownloads: true });
 page.setDefaultTimeout(20000);
@@ -29,15 +30,23 @@ const setRange = async (selector, value) => page.locator(selector).evaluate((inp
 const commit = async (selector, value) => { await page.locator(selector).fill(String(value)); await page.locator(selector).press('Tab'); };
 try {
   const previewUrl = await startPreview();
+  await guideRegressions(browser, previewUrl, root);
   await releaseRegressions(browser, previewUrl, root);
   await page.addInitScript(() => {
     const original = AudioContext.prototype.createAnalyser;
     AudioContext.prototype.createAnalyser = function () { const node = original.call(this); if (!window.__qa) window.__qa = { context: this, analyser: node, counter: 0, controls: [] }; return node; };
     const constant = AudioContext.prototype.createConstantSource;
     AudioContext.prototype.createConstantSource = function () { const node = constant.call(this); window.__qa?.controls.push(node); return node; };
+    const clear = CanvasRenderingContext2D.prototype.clearRect, fill = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.clearRect = function (...args) { if (this.canvas.id === 'matrix-rain') window.__matrixGlyphs = []; return clear.apply(this, args); };
+    CanvasRenderingContext2D.prototype.fillText = function (text, x, y, ...args) {
+      if (this.canvas.id === 'matrix-rain') window.__matrixGlyphs.push({ text, x, y });
+      return fill.call(this, text, x, y, ...args);
+    };
   });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto(previewUrl, { waitUntil: 'networkidle' });
+  assert.deepEqual(await page.locator('#theme-mode option').allTextContents(), ['System', 'Dark', 'Light', 'Green', 'Blue', 'Matrix']);
   assert(!requests.some((url) => url.endsWith('.mp3') || url.includes('lamejs.iife')), 'audio and encoder load lazily');
   assert(await page.locator('meta[name="application-version"]').getAttribute('content') !== 'development');
   await page.locator('#recording-credits').click();
@@ -120,6 +129,19 @@ try {
   assert.equal(await page.locator('#matrix-rain').getAttribute('aria-hidden'), 'true');
   assert.equal(await page.locator('#matrix-rain').evaluate((canvas) => getComputedStyle(canvas).pointerEvents), 'none');
   const rainStart = await page.evaluate(rainFrame); assert(rainStart.pixels > 100, 'Matrix rain is nonblank');
+  await page.waitForFunction(() => {
+    const columns = new Map();
+    for (const item of window.__matrixGlyphs || []) { if (!columns.has(item.x)) columns.set(item.x, []); columns.get(item.x).push(item); }
+    const text = [...columns.values()].map((items) => items.sort((a, b) => a.y - b.y).map((item) => item.text).join('')).join(' ');
+    return ['BINAURAL', 'BEAT', 'MIXER'].every((word) => text.includes(word));
+  }, null, { timeout: 20000 });
+  const glyphCoverage = await page.evaluate(() => {
+    const text = window.__matrixGlyphs.map((item) => item.text).join('');
+    return { kanji: new Set(text.match(/[\u4E00-\u9FFF]/g)).size, katakana: new Set(text.match(/[\uFF66-\uFF9D]/g)).size, font: document.getElementById('matrix-rain').getContext('2d').font };
+  });
+  assert(glyphCoverage.kanji >= 20); assert(glyphCoverage.katakana >= 10); assert(glyphCoverage.font.includes('Yu Gothic'));
+  const rainPng = await page.locator('#matrix-rain').evaluate((canvas) => canvas.toDataURL('image/png'));
+  await writeFile(new URL('matrix-glyphs.png', root), Buffer.from(rainPng.split(',')[1], 'base64'));
   await page.waitForFunction(({ previous }) => {
     const canvas = document.querySelector('#matrix-rain'), data = canvas.getContext('2d').getImageData(0, 0, Math.min(canvas.width, 480), Math.min(canvas.height, 600)).data;
     let hash = 2166136261;
@@ -143,7 +165,7 @@ try {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.locator('#theme-mode').selectOption('matrix');
   await page.waitForFunction(() => !document.querySelector('#matrix-rain').hidden);
-  evidence.matrixRain = { initialPixels: rainStart.pixels, animated: true, pausePersists: true, reducedMotionDisables: true, offThemeHidden: true };
+  evidence.matrixRain = { initialPixels: rainStart.pixels, ...glyphCoverage, verticalWords: ['BINAURAL', 'BEAT', 'MIXER'], animated: true, pausePersists: true, reducedMotionDisables: true, offThemeHidden: true };
   await page.locator('.topbar').scrollIntoViewIfNeeded();
   await page.screenshot({ path: fileURLToPath(new URL('matrix-rain-desktop.png', root)), fullPage: false });
   assert.equal(await page.evaluate(() => localStorage.getItem('beat-mixer.current.v1')), audioBeforeThemes, 'themes must not change audio settings');
@@ -156,13 +178,13 @@ try {
   await page.locator('#reset-mix').click(); await page.locator('#theme-mode').selectOption('light');
   console.log('Theme migration, persistence, system changes, canvas pixels and responsive palettes passed');
   assert.equal(await page.title(), 'Hz Mixer');
-  assert.equal(await page.locator('h1').textContent(), 'Hz Mixer');
-  assert.equal(await page.locator('.brand').innerText(), 'Hz Mixer');
+  assert.equal(await page.locator('.topbar h1').textContent(), 'Hz Mixer');
+  assert.equal(await page.locator('.topbar .brand').innerText(), 'Hz Mixer');
   assert.equal(await page.locator('#generator-heading').textContent(), 'Generator');
   assert.equal(await page.locator('#monitor-heading').textContent(), 'Monitor');
-  assert((await page.locator('.brand-mark img').getAttribute('src')).endsWith('/mixer-waves.svg'));
+  assert((await page.locator('.topbar .brand-mark img').getAttribute('src')).endsWith('/mixer-waves.svg'));
   assert((await page.locator('link[rel="icon"]').getAttribute('href')).endsWith('/mixer-waves.svg'));
-  assert(await page.locator('.brand-mark').evaluate((mark) => {
+  assert(await page.locator('.topbar .brand-mark').evaluate((mark) => {
     const image = mark.querySelector('img').getBoundingClientRect(), tile = mark.getBoundingClientRect();
     return Math.abs(image.width - tile.width) < .1 && Math.abs(image.height - tile.height) < .1;
   }), 'wave artwork fills the brand tile');

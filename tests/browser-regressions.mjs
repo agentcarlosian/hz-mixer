@@ -8,7 +8,7 @@ export async function releaseRegressions(browser, url, output) {
   page.setDefaultTimeout(15000);
   try {
     await page.goto(url);
-    for (const [opener, name] of [['#save-mix', 'Save your mix'], ['#open-export', 'Export'], ['#open-import', 'Import mixes'], ['#privacy-open', 'Privacy'], ['#recording-credits', 'Credits and licences']]) {
+    for (const [opener, name] of [['#info-open', 'About Hz Mixer'], ['#save-mix', 'Save your mix'], ['#open-export', 'Export'], ['#open-import', 'Import mixes'], ['#privacy-open', 'Privacy'], ['#recording-credits', 'Credits and licences']]) {
       await page.locator(opener).click();
       assert(await page.getByRole('dialog', { name, exact: true }).isVisible()); await page.keyboard.press('Escape');
     }

@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { Script } from 'node:vm';
 import { SOUNDS } from '../src/mix-state.mjs';
+import { guideMarkup } from './guide-lib.mjs';
 import { root, read, metadata, modulePaths, iconNames, creditsMarkup, creditsListener, stampVersion, replaceOnce } from './build-lib.mjs';
 
 const escapeScript = (text) => text.replace(/<\/script/gi, '<\\/script');
@@ -54,6 +55,8 @@ export async function renderStandaloneHtml() {
   if (/<\/script/i.test(encoder)) throw new Error('Encoder cannot safely be embedded without changing it.');
   new Script(encoder, { filename: 'mp3-encoder' });
   let html = stampVersion(await read('index.html'));
+  html = replaceOnce(html, '<!-- embedded-guide -->', await guideMarkup(true));
+  html = replaceOnce(html, 'href="./guide.html" target="_blank" rel="noopener"', 'href="#guide"');
   html = replaceOnce(html, '<link rel="stylesheet" href="./styles.css" />', '<style>' + await read('styles.css') + '</style>');
   html = html.replace(/(src|href)="\.\/assets\/icons\/([a-z0-9-]+)\.svg"/g, (_, attribute, name) => {
     if (!icons[name]) throw new Error('Missing static icon: ' + name);
