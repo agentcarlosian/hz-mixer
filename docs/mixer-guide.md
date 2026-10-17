@@ -158,9 +158,9 @@ The MP3 encoder loads only when needed on the website. It is embedded in the por
 
 The header offers System, Dark, Light, Green, Blue and Matrix. Green is the original dark-green palette. Dark uses near-black with purple accents; Blue uses cyan/yellow/magenta accents. Matrix uses a black/green palette and falling background code, mixing kanji, katakana, letters/numbers and vertical mixer vocabulary such as BINAURAL, BEAT and MIXER. Monitor colors follow the selected theme.
 
-System follows the device's light/dark preference. A stored selection of the original Dark theme migrates to Green. Older Cyberpunk selections use the same palette now labeled Blue.
+System follows the device's light/dark preference.
 
-Matrix has its own pause/resume button. Reduced-motion preferences disable the rain, and hidden tabs or other themes stop its animation. This preference is separate from mix backups. The rain is decorative and is not synchronized to the beat. No strobe or beat-synchronized light feature is included.
+Matrix has its own pause/resume button. Reduced-motion preferences disable the rain, and hidden tabs or other themes stop its animation. This preference is separate from mix backups. The rain is decorative and is not synchronized to the beat.
 
 ## Privacy and Offline Use
 

@@ -14,6 +14,11 @@ test('the same complete guide is rendered in the web page and embedded portable 
   assert(web.includes(content)); assert(portable.includes(content)); assert(app.includes(content));
   for (const html of [web, portable, app]) assert(!/reading or studying|less alert|activity takes concentration/i.test(html));
   for (const html of [web, portable, app]) assert(!/take listening breaks/i.test(html));
+  for (const text of [source, web, portable, app]) {
+    assert(!text.includes('A stored selection of the original Dark theme migrates to Green.'));
+    assert(!text.includes('Older Cyberpunk selections use the same palette now labeled Blue.'));
+    assert(!text.includes('No strobe or beat-synchronized light feature is included.'));
+  }
   assert(app.includes('id="guide-link" class="button primary" href="#guide"'));
   assert(portable.includes('<main id="guide-page" class="guide-shell" aria-labelledby="guide-title" hidden>'));
   assert(portable.includes('id="guide-link" class="button primary" href="#guide"'));
