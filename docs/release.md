@@ -28,6 +28,8 @@ The built-site regression suite serves the actual `_site/` at `/hz-mixer/`. Chec
 - `SHA256SUMS.txt`
 - `RELEASE_NOTES.md`
 
+Headless Linux browser jobs provision a per-user PulseAudio null sink before running the suite, so Firefox has an output device for its real-time audio clock. This does not mock Web Audio, bypass autoplay policy or skip playback assertions. The same setup is used by the validation and manual Pages workflows. Local Linux test environments also need a working audio output or a virtual sink; regular app users do not need this CI setup.
+
 `release:verify` also regenerates expected web/portable content in memory from current source and compares it with the existing outputs. It rejects stale runtime edits and missing, changed or extra web files without rewriting those outputs. Run `npm run build` before preparing new release artifacts after a source change.
 
 ZIP documentation preserves its original paths, including recording/icon notices and the separately replaceable encoder, full GNU licence texts and exact upstream source archive. The HTML independently embeds the same notices/source download. The [encoder instructions](../vendor/lamejs/README.md) explain replacement and rebuilding. MIT covers only original code/artwork.

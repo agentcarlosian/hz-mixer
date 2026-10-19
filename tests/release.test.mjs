@@ -64,6 +64,18 @@ test('CI is validation-only, SHA-pinned and read-only', async () => {
   assert(actions.every(([, name, ref]) => name.startsWith('actions/') && /^[a-f0-9]{40}$/.test(ref)));
 });
 
+test('Linux browser jobs provide a virtual audio sink before testing without bypassing browser audio', async () => {
+  for (const file of ['ci.yml', 'pages.yml']) {
+    const workflow = await readFile(new URL('../.github/workflows/' + file, import.meta.url), 'utf8');
+    assert(workflow.includes('pulseaudio --start --exit-idle-time=-1'));
+    assert(workflow.includes('pactl load-module module-null-sink sink_name=hz_mixer_ci rate=48000 channels=2'));
+    assert(workflow.includes('pactl set-default-sink hz_mixer_ci'));
+    assert(workflow.indexOf('Start virtual audio output') > workflow.indexOf('Install isolated Firefox'));
+    assert(workflow.indexOf('Start virtual audio output') < workflow.indexOf('run: npm run test:browser'));
+    assert(!/media\.autoplay|block-webaudio|fake-audio|skip.*audio/i.test(workflow));
+  }
+});
+
 test('original source licensing, when selected, travels inside the portable build', async () => {
   const metadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url)));
   const html = await readFile(new URL('../Hz Mixer.html', import.meta.url), 'utf8');

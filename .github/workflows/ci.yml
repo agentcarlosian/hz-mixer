@@ -34,6 +34,15 @@ jobs:
       - name: Install isolated Firefox
         if: runner.os == 'Linux'
         run: npx playwright install --with-deps firefox
+      - name: Start virtual audio output
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=hz_mixer_ci rate=48000 channels=2
+          pactl set-default-sink hz_mixer_ci
+          pactl info
+          pactl list short sinks
       - name: Browser regression checks
         if: runner.os == 'Linux'
         run: npm run test:browser
