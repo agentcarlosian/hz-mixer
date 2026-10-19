@@ -2,7 +2,7 @@
 
 ![Hz Mixer banner with a three-fader mixing console and flowing mint and lavender waves](docs/images/hz-mixer-banner.png)
 
-A browser audio mixer for binaural beats, monaural beats, isochronic pulses, environmental recordings and generated noise. No account, backend, analytics or runtime CDN.
+A browser audio mixer for binaural beats, monaural beats, isochronic pulses, environmental recordings and generated noise.
 
 [Mixer guide](docs/mixer-guide.md) | [Offline build](#offline-build) | [Contributing](CONTRIBUTING.md)
 
@@ -22,13 +22,19 @@ A browser audio mixer for binaural beats, monaural beats, isochronic pulses, env
 - Opt-in per-source AM, independent or linked channel envelopes, auto-pan/balance, low/high/band-pass and notch filters, envelope preview and monitor AM/dry A/B.
 - Per-stage changes with From/To values for layer crossfades, carrier pitch, balance, AM depth and filter cutoff; shared live/WAV/MP3 processing.
 - Fade-in/out, crossfaded recording loops, and isochronic width, softness and depth.
-- System, black/purple Dark, Light, Green, Blue and Matrix themes; waveform/spectrum monitor, session progress and digital RMS meter. Matrix includes pausable kanji/kana code rain with mixer vocabulary and respects reduced motion.
+- System, Dark, Light, Green, Blue and Matrix themes; waveform/spectrum monitor, session progress and digital RMS meter. Matrix includes pausable kanji/kana code rain with mixer vocabulary and respects reduced motion.
 - Up to 30 named mixes and JSON mix/library backup with previewed import.
 - Stereo WAV (16-bit PCM) and MP3 (128/192/256/320 kbps), at 44.1 or 48 kHz, with progress/cancellation and optional direct-to-file saving.
 
 ![Hz Mixer playing a binaural and isochronic sweep with environmental audio in Dark theme](docs/images/mixer-dark.png)
 
-The header's info button opens a quick reference and the full guide without leaving the current mixer. The [complete mixer guide](docs/mixer-guide.md) covers every control, frequency programs, saved mixes, imports, exports, themes, privacy and troubleshooting. It is embedded in both builds and also available as the website's `guide.html`. No flashing-light features are included.
+The header's info button opens a quick reference and the full guide without leaving the current mixer. The [complete mixer guide](docs/mixer-guide.md) covers every control, frequency programs, saved mixes, imports, exports, themes, privacy and troubleshooting. It is embedded in both builds and also available as the website's `guide.html`.
+
+## Listening Safety
+
+**Use Hz Mixer while sitting or lying down in a safe place. Do not use it while driving, operating machinery, or where reduced alertness or altered awareness could cause injury.**
+
+Start at a low, comfortable volume. Use stereo headphones for binaural mode. The digital meter does not measure sound pressure at your ears.
 
 ## Local Data and Privacy
 
@@ -48,12 +54,6 @@ npm run build:standalone
 ```
 
 Node.js is required only for development and packaging, not for listening. Moving/renaming a portable file may create separate browser storage; back up your library first.
-
-## Listening Safety
-
-**Use Hz Mixer while sitting or lying down in a safe place. Do not use it while driving, operating machinery, or where reduced alertness or altered awareness could cause injury.**
-
-Start at a low, comfortable volume. Use stereo headphones for binaural mode. The digital meter does not measure sound pressure at your ears.
 
 ## Development
 
