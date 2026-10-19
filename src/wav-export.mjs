@@ -1,6 +1,7 @@
-import { SOUNDS, NOISES, normalizeMix, audibleLayers } from './mix-state.mjs';
+import { SOUNDS, NOISES, BELLS, normalizeMix, audibleLayers, layerSettings } from './mix-state.mjs';
 import { signalError, sessionSeconds } from './program.mjs';
-import { toneGraph, outputGraph, bufferLayer, setLayerLevels } from './audio-graph.mjs';
+import { toneGraph, outputGraph, bufferLayer, bellLayer, setLayerLevels } from './audio-graph.mjs';
+import { generatorSpecs, studioRange } from './studio-state.mjs';
 
 export function wavHeader(frames, sampleRate) {
   const bytes = new ArrayBuffer(44), view = new DataView(bytes);
@@ -22,9 +23,9 @@ export function pcm16(left, right, from = 0, count = left.length - from) {
 export function wavError(mix, seconds, sampleRate) {
   if (!Number.isFinite(seconds) || seconds < 1 || seconds > 7200) return 'Export duration must be between 1 second and 2 hours.';
   if (![44100, 48000].includes(sampleRate)) return 'Choose 44.1 or 48 kHz.';
-  const error = signalError(mix); if (error) return error;
+  const error = signalError(mix, sampleRate); if (error) return error;
   const audible = audibleLayers(mix);
-  const nonzero = [...audible].some((id) => id === 'tone' ? mix.toneLevel > 0 : (mix.sounds[id] || mix.noise[id]).level > 0);
+  const nonzero = [...audible].some((id) => studioRange(mix, id + ':level', id === 'tone' ? mix.toneLevel : layerSettings(mix, id).level).max > 0);
   return mix.masterMuted || !mix.master || !nonzero ? 'Unmute and raise at least one audible layer and the master before exporting.' : '';
 }
 
@@ -58,6 +59,17 @@ export function waitForExport(task, signal) {
   });
 }
 
+export function blendRenderOverlap(channels, previous) {
+  if (!previous) return;
+  for (let channel = 0; channel < channels.length; channel++) {
+    const data = channels[channel], tail = previous[channel], count = Math.min(data.length, tail.length);
+    for (let i = 0; i < count; i++) {
+      const weight = count > 1 ? .5 - .5 * Math.cos(Math.PI * i / (count - 1)) : 0;
+      data[i] = tail[i] * (1 - weight) + data[i] * weight;
+    }
+  }
+}
+
 export async function* renderPcm(value, seconds, sampleRate, loadBuffer, onProgress, signal, chunkSeconds = 20) {
   const mix = normalizeMix(value);
   const error = wavError(mix, seconds, sampleRate); if (error) throw new Error(error);
@@ -65,24 +77,34 @@ export async function* renderPcm(value, seconds, sampleRate, loadBuffer, onProgr
   const cancelled = () => checkExportCancelled(signal);
   cancelled(); onProgress(0, 'Loading audio');
   const audible = audibleLayers(mix), buffers = new Map();
-  for (const { id } of [...SOUNDS, ...NOISES]) if (audible.has(id)) { cancelled(); buffers.set(id, await waitForExport(loadBuffer(id), signal)); }
+  for (const { id } of [...SOUNDS, ...NOISES, ...BELLS]) if (audible.has(id)) { cancelled(); buffers.set(id, await waitForExport(loadBuffer(id), signal)); }
   const frames = Math.round(seconds * sampleRate);
   const blockSize = Math.round(chunkSeconds * sampleRate);
+  const blendFrames = generatorSpecs(mix).some((voice) => voice.enabled && audible.has(voice.id)) ? Math.min(blockSize, Math.round(sampleRate * .01)) : 0;
+  let previous = null;
   for (let start = 0; start < frames; start += blockSize) {
     cancelled();
     const count = Math.min(blockSize, frames - start);
-    // Warm the compressor before each block, preserving global oscillator phase.
+    // Warm the compressor; matching-time look-ahead tails smooth native oscillator restarts.
     const warm = Math.min(start, sampleRate * 3);
-    const from = (start - warm) / sampleRate, until = (start + count) / sampleRate;
-    const context = new OfflineAudioContext(2, count + warm, sampleRate);
+    const overlap = Math.min(blendFrames, frames - start - count);
+    const from = (start - warm) / sampleRate, until = (start + count + overlap) / sampleRate;
+    const context = new OfflineAudioContext(2, count + warm + overlap, sampleRate);
     const output = outputGraph(context, mix, context.destination, from, until, 0, seconds);
     const tone = toneGraph(context, mix, output.master, from, 0, until);
+    const voices = new Map();
+    for (const voice of generatorSpecs(mix)) if (voice.id !== 'tone' && voice.enabled) voices.set(voice.id, toneGraph(context, mix, output.master, from, 0, until, voice.id));
     const layers = new Map();
-    for (const [id, buffer] of buffers) layers.set(id, bufferLayer(context, buffer, output.master, from, 0));
-    setLayerLevels(context, mix, tone, layers, output.master, true);
+    for (const [id, buffer] of buffers) layers.set(id, mix.bells[id]
+      ? bellLayer(context, buffer, output.master, mix.bells[id].interval, from, until, 0, seconds)
+      : bufferLayer(context, buffer, output.master, from, 0, { mix, id, until }));
+    setLayerLevels(context, mix, tone, layers, output.master, true, voices, { from, until, when: 0 });
     const rendered = await context.startRendering();
     cancelled();
-    yield { left: rendered.getChannelData(0).subarray(warm), right: rendered.getChannelData(1).subarray(warm), progress: (start + count) / frames };
+    const channels = [0, 1].map((channel) => rendered.getChannelData(channel).subarray(warm, warm + count));
+    blendRenderOverlap(channels, previous);
+    previous = overlap ? [0, 1].map((channel) => rendered.getChannelData(channel).slice(warm + count)) : null;
+    yield { left: channels[0], right: channels[1], progress: (start + count) / frames };
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
   cancelled();

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { Script } from 'node:vm';
-import { SOUNDS } from '../src/mix-state.mjs';
+import { SOUNDS, RECORDINGS, recordingPath } from '../src/mix-state.mjs';
 
 const root = new URL('../', import.meta.url);
 const html = await readFile(new URL('Hz Mixer.html', root), 'utf8');
@@ -15,10 +15,10 @@ function script(id) {
   return match[1];
 }
 
-test('the standalone file contains exact copies of all four recordings', async () => {
-  for (const { id } of SOUNDS) {
+test('the standalone file contains exact copies of every environment and bell recording', async () => {
+  for (const { id } of RECORDINGS) {
     const embedded = Buffer.from(script('embedded-audio-' + id), 'base64');
-    const original = await readFile(new URL('assets/audio/' + id + '.mp3', root));
+    const original = await readFile(new URL(recordingPath(id), root));
     assert.equal(embedded.length, original.length);
     assert.equal(hash(embedded), hash(original), id + ' bytes remain intact');
   }
@@ -77,16 +77,18 @@ test('the standalone controls expose the new precision and carrier limits', () =
   for (const id of ['beat-value', 'beat-rate']) {
     const input = html.match(new RegExp('<input[^>]*id="' + id + '"[^>]*>'))[0];
     assert(input.includes('step="0.01"'));
+    assert(input.includes('min="0.1"')); assert(input.includes('max="120"'));
   }
   for (const id of ['carrier-value', 'carrier']) {
     const input = html.match(new RegExp('<input[^>]*id="' + id + '"[^>]*>'))[0];
-    assert(input.includes('min="20"'));
-    assert(input.includes('max="2000"'));
+    assert(input.includes('min="1"'));
+    assert(input.includes('max="5000"'));
   }
 });
 
 test('the standalone embeds every approved roadmap control and updated audio loader', () => {
-  for (const id of ['band-filter', 'method-filter', 'favorites-only', 'favorite-mix', 'sweep-start', 'sweep-end', 'sweep-seconds', 'sweep-repeat', 'program-canvas', 'stage-list', 'add-stage', 'fade-in', 'fade-out', 'pulse-width', 'pulse-softness', 'pulse-depth', 'noise-list', 'export-dialog', 'import-dialog', 'export-progress', 'export-direct']) assert(html.includes('id="' + id + '"'), id);
+  for (const id of ['preset-summary', 'preset-search', 'favorites-only', 'favorite-mix', 'sweep-start', 'sweep-end', 'sweep-seconds', 'sweep-repeat', 'program-canvas', 'stage-list', 'add-stage', 'fade-in', 'fade-out', 'pulse-width', 'pulse-softness', 'pulse-depth', 'noise-list', 'export-dialog', 'import-dialog', 'export-progress', 'export-direct']) assert(html.includes('id="' + id + '"'), id);
+  for (const id of ['band-filter', 'method-filter']) assert(!html.includes('id="' + id + '"'), id + ' removed');
   assert(html.includes('async function audioBytes(name)'));
   assert(!html.includes('function audioUrl('));
   assert(html.includes("'theta-783'"));
@@ -118,9 +120,17 @@ test('the simplified header and monitor-first organization survive packaging', (
   assert(html.includes('<h2 id="generator-heading">Generator</h2>'));
   assert(html.includes('<h2 id="monitor-heading">Monitor</h2>'));
   assert(html.indexOf('class="transport-bar"') < html.indexOf('class="output-panel"'));
+  const transport = html.slice(html.indexOf('class="transport-bar"'), html.indexOf('class="output-panel"'));
+  assert(transport.includes('id="reset-mix" class="icon-button secondary reset-button"'));
+  assert(transport.includes('id="randomize-mix"'));
+  assert(transport.includes('id="restore-mix"'));
+  assert(transport.indexOf('id="randomize-mix"') < transport.indexOf('id="restore-mix"'));
+  assert(transport.indexOf('id="reset-mix"') < transport.indexOf('id="randomize-mix"'));
+  const library = html.slice(html.indexOf('class="library-bar"'), html.indexOf('class="catalog-controls"'));
+  assert(!library.includes('id="reset-mix"'), 'reset is no longer in the library row');
   assert(html.indexOf('class="output-panel"') < html.indexOf('class="workspace"'));
   const icons = JSON.parse(script('embedded-icons'));
-  for (const name of ['mixer-waves', ...SOUNDS.map((sound) => sound.icon)]) assert(icons[name]);
+  for (const name of ['mixer-waves', 'dices', ...SOUNDS.map((sound) => sound.icon)]) assert(icons[name]);
   assert(html.includes('<link rel="icon" href="' + icons['mixer-waves'] + '" />'));
   assert.equal(new Set(SOUNDS.map((sound) => sound.icon)).size, SOUNDS.length);
 });

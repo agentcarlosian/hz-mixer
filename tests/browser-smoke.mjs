@@ -1,10 +1,24 @@
 import assert from 'node:assert/strict';
+import { revealMixerControl, setStageDuration } from './browser-mixer-helpers.mjs';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { firefox } from 'playwright';
 import { spawn } from 'node:child_process';
 import { releaseRegressions } from './browser-regressions.mjs';
 import { guideRegressions } from './browser-guide.mjs';
+import { frequencyRegressions } from './browser-frequency.mjs';
+import { auditFixRegressions } from './browser-audit-fixes.mjs';
+import { bellRegressions } from './browser-bells.mjs';
+import { windowRainRegressions } from './browser-window-rain.mjs';
+import { studioRegressions } from './browser-studio.mjs';
+import { resetRegressions } from './browser-reset.mjs';
+import { portableRegressions } from './browser-portable.mjs';
+import { sessionEditorRegressions } from './browser-session.mjs';
+import { presetRegressions } from './browser-presets.mjs';
+import { PRESETS } from '../src/mix-state.mjs';
+import { randomizeRegressions } from './browser-randomize.mjs';
+import { polishRegressions } from './browser-polish.mjs';
+import { restoreRegressions } from './browser-restore.mjs';
 const browser = await firefox.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1365, height: 1000 }, acceptDownloads: true });
 page.setDefaultTimeout(20000);
@@ -27,10 +41,22 @@ async function startPreview() {
   });
 }
 const setRange = async (selector, value) => page.locator(selector).evaluate((input, n) => { input.value = n; input.dispatchEvent(new Event('input', { bubbles: true })); }, String(value));
-const commit = async (selector, value) => { await page.locator(selector).fill(String(value)); await page.locator(selector).press('Tab'); };
+const commit = async (selector, value) => { await revealMixerControl(page, selector); await page.locator(selector).fill(String(value)); await page.locator(selector).press('Tab'); };
 try {
   const previewUrl = await startPreview();
+  await restoreRegressions(browser, previewUrl, root);
+  await polishRegressions(browser, previewUrl, root);
+  await presetRegressions(browser, previewUrl, root);
+  await randomizeRegressions(browser, previewUrl, root);
+  await sessionEditorRegressions(browser, previewUrl, root);
+  await resetRegressions(browser, previewUrl, root);
+  await portableRegressions(browser, previewUrl, root);
+  await studioRegressions(browser, previewUrl, root);
   await guideRegressions(browser, previewUrl, root);
+  await bellRegressions(browser, previewUrl, root);
+  await windowRainRegressions(browser, previewUrl, root);
+  await auditFixRegressions(browser, previewUrl, root);
+  await frequencyRegressions(browser, previewUrl, root);
   await releaseRegressions(browser, previewUrl, root);
   await page.addInitScript(() => {
     const original = AudioContext.prototype.createAnalyser;
@@ -63,7 +89,8 @@ try {
   assert.equal(await legacyPage.locator('html').getAttribute('data-theme'), 'dark', 'new preference wins over legacy Dark');
   assert.equal(await legacyPage.locator('#status').textContent(), 'Ready', 'theme reload does not autoplay');
   await legacyPage.close();
-  await page.locator('input[name="program"][value="sweep"]').check();
+  await revealMixerControl(page, 'input[name="program"][value="sweep"]'); await page.locator('input[name="program"][value="sweep"]').check();
+  await revealMixerControl(page, '[data-enable="stream"]'); await page.locator('[data-enable="stream"]').check();
   const audioBeforeThemes = await page.evaluate(() => localStorage.getItem('beat-mixer.current.v1'));
   const themeColors = { light: 'rgb(245, 247, 246)', green: 'rgb(23, 27, 26)', dark: 'rgb(8, 8, 11)', cyberpunk: 'rgb(9, 10, 14)', matrix: 'rgb(3, 7, 5)' };
   assert.equal(await page.locator('#theme-mode option[value="cyberpunk"]').textContent(), 'Blue');
@@ -101,7 +128,7 @@ try {
       const layout = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, bad: [...document.querySelectorAll('input, select, button, .sound-title h3')].filter((element) => element.getClientRects().length && (element.getBoundingClientRect().left < -1 || element.getBoundingClientRect().right > innerWidth + 1 || element.scrollWidth > element.clientWidth + 2)).map((element) => element.id || element.textContent) }));
       assert(layout.scroll <= layout.width, theme + ' at ' + width + ': ' + JSON.stringify(layout)); assert.deepEqual(layout.bad, [], theme + ' at ' + width);
       for (const id of ['pink', 'brown']) {
-        const icon = page.locator('[data-sound="' + id + '"] .sound-icon img'); assert(await icon.isVisible());
+        const icon = page.locator('[data-sound="' + id + '"] .sound-icon img'); assert(await icon.count());
         assert.equal(await icon.evaluate((element) => getComputedStyle(element).filter), 'none');
       }
       if (width === 390 || width === 1365) {
@@ -178,6 +205,11 @@ try {
   await page.locator('#reset-mix').click(); await page.locator('#theme-mode').selectOption('light');
   console.log('Theme migration, persistence, system changes, canvas pixels and responsive palettes passed');
   assert.equal(await page.title(), 'Hz Mixer');
+  assert.equal(await page.locator('#band-filter, #method-filter').count(), 0);
+  await page.locator('#mix-select').selectOption('preset:nature');
+  assert.equal(await page.locator('#preset-summary').textContent(), 'Environment only');
+  assert.equal(await page.locator('#mix-select optgroup[label="Environment only"] option[value="preset:nature"]').textContent(), 'Environment only');
+  await page.locator('#reset-mix').click();
   assert.equal(await page.locator('.topbar h1').textContent(), 'Hz Mixer');
   assert.equal(await page.locator('.topbar .brand').innerText(), 'Hz Mixer');
   assert.equal(await page.locator('#generator-heading').textContent(), 'Generator');
@@ -193,17 +225,17 @@ try {
   for (const [id, icon] of [['cascade', 'waterfall'], ['stream', 'stream-flow'], ['storm', 'thunderstorm'], ['waves', 'sea-waves']]) {
     assert((await page.locator('[data-sound="' + id + '"] .sound-icon img').getAttribute('src')).endsWith('/' + icon + '.svg'));
   }
-  assert.equal(await page.locator('#mix-select option').count(), 38);
+  assert.equal(await page.locator('#mix-select option').count(), PRESETS.length + 1);
   await page.locator('#mix-select').selectOption('preset:theta-783');
   await page.locator('#favorite-mix').click();
   await page.locator('#favorites-only').check();
   assert.equal(await page.locator('#mix-select option').count(), 2);
   await page.locator('#favorites-only').uncheck();
-  await page.locator('#band-filter').selectOption('gamma');
-  assert.equal(await page.locator('#mix-select optgroup[label="Gamma"] option').count(), 5);
-  await page.locator('#band-filter').selectOption('all');
+  await page.locator('#preset-search').fill('Gamma');
+  assert.equal(await page.locator('#mix-select optgroup[label="Gamma"] option').count(), PRESETS.filter((preset) => preset.band === 'gamma').length);
+  await page.locator('#preset-search').fill('');
   await page.locator('#reset-mix').click();
-  await page.locator('[data-enable="stream"]').uncheck();
+  await revealMixerControl(page, '[data-enable="stream"]'); await page.locator('[data-enable="stream"]').uncheck();
   await commit('#fade-in', 0); await commit('#fade-out', 0);
   await page.locator('#play-button').click();
   await page.waitForFunction(() => document.querySelector('#status').textContent === 'Playing');
@@ -219,7 +251,7 @@ try {
   });
   const samples = async () => { const count = await page.evaluate(() => window.__qa.counter); await page.waitForFunction((n) => window.__qa.counter > n + 5, count); return page.evaluate(() => window.__qa.latest); };
   for (const mode of ['binaural', 'monaural', 'isochronic']) {
-    await page.locator('input[name="mode"][value="' + mode + '"]').check();
+    await revealMixerControl(page, 'input[name="mode"][value="' + mode + '"]'); await page.locator('input[name="mode"][value="' + mode + '"]').check();
     const data = await samples(); evidence[mode] = data;
     assert(data.left > .001 && data.right > .001);
     assert(mode === 'binaural' ? data.difference > .001 : data.difference < 1e-6);
@@ -227,16 +259,16 @@ try {
   console.log('Stereo modes passed');
   await page.locator('#master-mute').click(); const muted = await samples(); assert(muted.left < 1e-5); await page.locator('#master-mute').click();
   for (const id of ['white', 'pink', 'brown', 'cascade', 'stream', 'storm', 'waves']) {
-    await page.locator('[data-solo="' + id + '"]').click();
+    await revealMixerControl(page, '[data-solo="' + id + '"]'); await page.locator('[data-solo="' + id + '"]').click();
     await setRange('[data-pan="' + id + '"]', -100);
     await page.waitForFunction((id) => document.querySelector('[data-track-state="' + id + '"]').textContent === 'Solo', id);
     const data = await samples(); evidence[id] = data;
     assert(data.left > .0001 && data.right < 1e-5, id + ' solo left');
     await setRange('[data-pan="' + id + '"]', 100); const right = await samples(); assert(right.right > .0001 && right.left < 1e-5, id + ' solo right');
-    await page.locator('[data-enable="' + id + '"]').uncheck();
+    await revealMixerControl(page, '[data-enable="' + id + '"]'); await page.locator('[data-enable="' + id + '"]').uncheck();
   }
   console.log('Noise, recordings and pan passed');
-  await page.locator('input[name="program"][value="sweep"]').check();
+  await revealMixerControl(page, 'input[name="program"][value="sweep"]'); await page.locator('input[name="program"][value="sweep"]').check();
   await commit('#sweep-start', 12); await commit('#sweep-end', 6); await commit('#sweep-seconds', 5); await page.locator('#sweep-curve').selectOption('linear');
   assert.equal(await page.locator('#sweep-start').inputValue(), '12'); assert.equal(await page.locator('#sweep-seconds').inputValue(), '5');
   await page.waitForFunction(() => parseFloat(document.querySelector('#live-rate').value) < 11);
@@ -247,15 +279,16 @@ try {
   await page.waitForTimeout(600); assert.equal(await page.locator('#live-rate').textContent(), paused);
   await page.locator('#play-button').click(); await page.waitForTimeout(500);
   assert(parseFloat(await page.locator('#live-rate').textContent()) <= parseFloat(paused));
+  assert(await page.locator('#beat-value').isHidden()); await page.locator('input[name="program"][value="fixed"]').check();
   await commit('#beat-value', 7.83); assert(await page.locator('input[name="program"][value="fixed"]').isChecked());
   await page.locator('#stop-button').click(); await page.waitForFunction(() => document.querySelector('#status').textContent === 'Stopped');
   console.log('Sweep clock and pause passed');
-  await page.locator('input[name="program"][value="sequence"]').check();
+  await revealMixerControl(page, 'input[name="program"][value="sequence"]'); await page.locator('input[name="program"][value="sequence"]').check();
   assert.equal(await page.locator('.stage-row').count(), 3);
   assert.equal(await page.locator('#session-total').textContent(), '25:00');
-  await commit('.stage-row:nth-child(1) [data-stage-key="seconds"]', 5);
-  await commit('.stage-row:nth-child(2) [data-stage-key="seconds"]', 5);
-  await commit('.stage-row:nth-child(3) [data-stage-key="seconds"]', 5);
+  await setStageDuration(page, 0, 5);
+  await setStageDuration(page, 1, 5);
+  await setStageDuration(page, 2, 5);
   await page.locator('#add-stage').click(); assert.equal(await page.locator('.stage-row').count(), 4);
   await page.locator('.stage-row:last-child [data-stage-action="up"]').click();
   await page.locator('.stage-row:last-child [data-stage-action="remove"]').click();
@@ -273,7 +306,7 @@ try {
   await page.locator('#import-current').uncheck(); await page.locator('#confirm-import').click();
   assert.equal(await page.locator('#mix-select optgroup[label="My mixes"] option').count(), 1, 'merge skips identical duplicate');
   console.log('Stages, persistence and JSON round trip passed');
-  await page.locator('#reset-mix').click(); await page.locator('[data-enable="stream"]').uncheck();
+  await page.locator('#reset-mix').click(); await revealMixerControl(page, '[data-enable="stream"]'); await page.locator('[data-enable="stream"]').uncheck();
   await page.locator('#open-export').click(); await page.locator('[data-export-tab="audio"]').click(); await commit('#export-seconds', 2);
   const wavEvent = page.waitForEvent('download'); await page.locator('#download-export').click(); const wav = await wavEvent; const bytes = await readFile(await wav.path());
   assert.equal(bytes.length, 44 + 2 * 44100 * 4); assert.equal(bytes.toString('ascii', 0, 4), 'RIFF');
@@ -337,7 +370,7 @@ try {
       for (let i = 44; i < full.byteLength; i += 2) { const a = full.getInt16(i, true) / 32768, b = split.getInt16(i, true) / 32768; diff += (a - b) ** 2; energy += a ** 2; peakDiff = Math.max(peakDiff, Math.abs(a - b)); }
       results.push({ mode, diff: Math.sqrt(diff / ((full.byteLength - 44) / 2)), rms: Math.sqrt(energy / ((full.byteLength - 44) / 2)), peakDiff });
     }
-    const mix = defaultMix(); mix.mode = 'off'; mix.noise.pink.enabled = true;
+    const mix = defaultMix(); mix.mode = 'off'; mix.sounds.stream.enabled = true; mix.noise.pink.enabled = true;
     const natural = await renderWav(mix, 2, 48000, (id) => engine.buffer(id), () => {});
     results.push({ mode: 'nature + noise at 48k', bytes: natural.size });
     let streamedBytes = 0, writes = 0;
@@ -345,7 +378,7 @@ try {
     if (streamed !== null || streamedBytes !== natural.size || writes !== 3) throw new Error('Streaming WAV sink failed');
     results.push({ mode: 'streaming sink', streamedBytes, writes });
     const { renderMp3 } = await import(new URL('src/mp3-export.mjs', location.href));
-    const programmed = defaultMix(); programmed.mode = 'isochronic'; programmed.noise.pink.enabled = true;
+    const programmed = defaultMix(); programmed.mode = 'isochronic'; programmed.sounds.stream.enabled = true; programmed.noise.pink.enabled = true;
     programmed.automation.kind = 'sequence'; programmed.automation.stages = [
       { type: 'hold', start: 7.83, end: 7.83, seconds: 5, curve: 'linear' },
       { type: 'sweep', start: 7.83, end: 12, seconds: 5, curve: 'smooth' },
@@ -374,31 +407,31 @@ try {
   });
   console.log('Offline comparison', evidence.offline);
   for (const result of evidence.offline.filter((x) => x.diff !== undefined)) { assert(result.rms > .001); assert(result.diff < .001, result.mode + ' chunk mismatch'); assert(result.peakDiff < .01, result.mode + ' chunk seam'); }
-  await page.locator('#reset-mix').click(); await page.locator('[data-enable="stream"]').uncheck();
-  await page.locator('input[name="program"][value="sequence"]').check();
+  await page.locator('#reset-mix').click(); await revealMixerControl(page, '[data-enable="stream"]'); await page.locator('[data-enable="stream"]').uncheck();
+  await revealMixerControl(page, 'input[name="program"][value="sequence"]'); await page.locator('input[name="program"][value="sequence"]').check();
   await page.locator('.stage-row:nth-child(3) [data-stage-action="remove"]').click(); await page.locator('.stage-row:nth-child(2) [data-stage-action="remove"]').click();
-  await commit('.stage-row:nth-child(1) [data-stage-key="seconds"]', 5); await commit('#fade-in', 1); await commit('#fade-out', 1);
+  await setStageDuration(page, 0, 5); await commit('#fade-in', 1); await commit('#fade-out', 1);
   await page.locator('#play-button').click(); await page.waitForFunction(() => document.querySelector('#status').textContent === 'Session complete');
   assert.equal(await page.locator('#remaining').textContent(), '00:05');
-  await page.locator('input[name="program"][value="fixed"]').check(); await commit('#fade-in', 0); await commit('#fade-out', 2);
+  await revealMixerControl(page, 'input[name="program"][value="fixed"]'); await page.locator('input[name="program"][value="fixed"]').check(); await commit('#fade-in', 0); await commit('#fade-out', 2);
   await page.locator('#play-button').click(); await page.locator('#stop-button').click(); assert.equal(await page.locator('#status').textContent(), 'Fading out...');
   await page.locator('#stop-button').click(); await page.waitForFunction(() => document.querySelector('#status').textContent === 'Stopped');
   await page.locator('#play-button').click(); await page.waitForTimeout(2300); assert.equal(await page.locator('#status').textContent(), 'Playing', 'old stop completion must not overwrite new playback');
   await commit('#fade-out', 0); await page.locator('#stop-button').click();
   console.log('Stage completion and stop/restart race passed');
-  await page.locator('#reset-mix').click(); await page.locator('#mix-select').selectOption('preset:theta-783'); await page.locator('input[name="program"][value="sweep"]').check();
+  await page.locator('#reset-mix').click(); await page.locator('#mix-select').selectOption('preset:theta-783'); await revealMixerControl(page, 'input[name="program"][value="sweep"]'); await page.locator('input[name="program"][value="sweep"]').check();
   await commit('#sweep-start', 12); await commit('#sweep-end', 7.83);
   await page.locator('#theme-mode').selectOption('dark');
   await page.screenshot({ path: fileURLToPath(new URL('roadmap-preview.png', root)), fullPage: false });
-  await page.locator('input[name="program"][value="sequence"]').check();
+  await revealMixerControl(page, 'input[name="program"][value="sequence"]'); await page.locator('input[name="program"][value="sequence"]').check();
   await page.screenshot({ path: fileURLToPath(new URL('roadmap-desktop-dark.png', root)), fullPage: true });
   for (const width of [320, 390, 768, 1365]) {
     await page.setViewportSize({ width, height: 900 });
     const layout = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, overflowing: [...document.querySelectorAll('input, select, button')].filter((e) => e.getClientRects().length && (e.getBoundingClientRect().right > document.documentElement.clientWidth + 1 || e.getBoundingClientRect().left < -1)).map((e) => e.id || e.className) }));
     assert(layout.scroll <= layout.width, JSON.stringify(layout)); assert.equal(layout.overflowing.length, 0, JSON.stringify(layout));
     assert(await page.locator('#monitor-heading').isVisible());
-    const monitor = await page.locator('.output-panel').boundingBox(), generator = await page.locator('.generator-panel').boundingBox();
-    assert(monitor.y + monitor.height <= generator.y, 'monitor precedes generator at ' + width + 'px');
+    const monitor = await page.locator('.output-panel').boundingBox(), workspace = await page.locator('#mixer-workspace').boundingBox();
+    assert(monitor.y + monitor.height <= workspace.y, 'monitor precedes mixer at ' + width + 'px');
     assert(await page.locator('img').evaluateAll((images) => images.every((image) => image.complete && image.naturalWidth > 0)), 'all icons loaded');
     evidence['layout' + width] = layout;
     if (width === 390) await page.screenshot({ path: fileURLToPath(new URL('roadmap-mobile-dark.png', root)), fullPage: true });
@@ -414,6 +447,7 @@ try {
     for (const id of ['pink', 'brown']) {
       const icon = page.locator('[data-sound="' + id + '"] .sound-icon img');
       assert((await icon.getAttribute('src')).endsWith('/noise-' + id + '.svg'));
+      await revealMixerControl(page, '[data-enable="' + id + '"]');
       assert(await icon.isVisible(), id + ' artwork is visible on desktop');
       const appearance = await icon.evaluate((img) => ({ filter: getComputedStyle(img).filter, opacity: getComputedStyle(img).opacity, background: getComputedStyle(img.parentElement).backgroundColor }));
       assert.equal(appearance.filter, 'none'); assert.equal(appearance.opacity, '1');

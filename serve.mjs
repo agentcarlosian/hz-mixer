@@ -14,6 +14,7 @@ const types = {
   ".svg": "image/svg+xml",
   ".md": "text/markdown; charset=utf-8",
   ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
   ".gz": "application/gzip",
   ".txt": "text/plain; charset=utf-8",
 };

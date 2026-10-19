@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#20382f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Rain on a four-pane window</title>
+  <rect x="8" y="5" width="32" height="36" rx="1.5"/>
+  <path d="M24 6v34M9 23h30M4 44h40"/>
+  <path d="M16 11c0 0-3 4-3 6a3 3 0 0 0 6 0c0-2-3-6-3-6ZM32 28c0 0-3 4-3 6a3 3 0 0 0 6 0c0-2-3-6-3-6Z"/>
+  <path d="m33 11-3 6m-13 12-3 6" opacity=".65"/>
+</svg>

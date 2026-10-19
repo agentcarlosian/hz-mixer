@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { revealMixerControl } from './browser-mixer-helpers.mjs';
 import { fileURLToPath } from 'node:url';
 import { defaultMix } from '../src/mix-state.mjs';
 import { makeBackup } from '../src/library.mjs';
@@ -13,15 +14,15 @@ export async function releaseRegressions(browser, url, output) {
       assert(await page.getByRole('dialog', { name, exact: true }).isVisible()); await page.keyboard.press('Escape');
     }
     await page.locator('#duration').selectOption('300');
-    await page.locator('input[name="program"][value="sequence"]').check();
+    await revealMixerControl(page, 'input[name="program"][value="sequence"]'); await page.locator('input[name="program"][value="sequence"]').check();
     const first = page.locator('[data-stage="0"]');
     await first.locator('[data-stage-key="type"]').selectOption('sweep');
     await first.locator('[data-stage-key="start"]').fill('11'); await first.locator('[data-stage-key="start"]').press('Tab');
     assert.equal(await page.evaluate(() => document.activeElement.dataset.stageKey), 'end');
     await first.locator('[data-stage-key="type"]').selectOption('hold');
     await first.locator('[data-stage-key="start"]').fill('10'); await first.locator('[data-stage-key="start"]').press('Tab');
-    assert.equal(await page.evaluate(() => document.activeElement.dataset.stageKey), 'seconds');
-    await page.locator('input[name="program"][value="fixed"]').check();
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.stageDuration), 'minutes');
+    await revealMixerControl(page, 'input[name="program"][value="fixed"]'); await page.locator('input[name="program"][value="fixed"]').check();
     assert.equal(await page.locator('#duration option[value="stages"]').count(), 0);
     assert.equal(await page.locator('#duration').inputValue(), '300');
     await page.locator('#duration').evaluate((select) => { select.append(new Option('Invalid stage option', 'stages')); select.value = 'stages'; select.dispatchEvent(new Event('change', { bubbles: true })); });
@@ -64,8 +65,8 @@ export async function releaseRegressions(browser, url, output) {
     await held.route('**/' + resource, async (route) => { requested(); await gate; try { await route.continue(); } catch { /* Page cleanup may finish a held request. */ } });
     try {
       await held.goto(url);
-      if (resource.endsWith('.mp3')) { await held.locator('#play-button').click(); await hit; }
-      else await held.locator('[data-enable="stream"]').uncheck();
+      if (resource.endsWith('.mp3')) { await revealMixerControl(held, '[data-enable="stream"]'); await held.locator('[data-enable="stream"]').check(); await held.locator('#play-button').click(); await hit; }
+      else { await revealMixerControl(held, '[data-enable="stream"]'); await held.locator('[data-enable="stream"]').uncheck(); }
       await held.locator('#open-export').click();
       await held.locator('#export-format').selectOption(resource.endsWith('.mp3') ? 'wav' : 'mp3');
       await held.locator('#export-seconds').fill('1'); await held.locator('#download-export').click(); await hit;

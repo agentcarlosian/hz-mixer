@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pulseValue, noiseData, crossfadeData } from '../src/audio-graph.mjs';
+import { pulseValue, noiseData, crossfadeData, setLayerLevels } from '../src/audio-graph.mjs';
 import { defaultMix, audibleLayers } from '../src/mix-state.mjs';
-import { wavHeader, pcm16, wavError, exportSeconds, renderWav, waitForExport } from '../src/wav-export.mjs';
+import { wavHeader, pcm16, wavError, exportSeconds, renderWav, waitForExport, blendRenderOverlap } from '../src/wav-export.mjs';
 import { getEventListeners } from 'node:events';
 import { AudioEngine } from '../src/audio-engine.js';
 
@@ -12,6 +12,36 @@ test('engine settings are isolated snapshots and idle playback clocks stay froze
   assert.equal(engine.mix.beat, 8); assert.equal(engine.mix.noise.white.enabled, false);
   engine.position = 5.25; assert.equal(engine.elapsed(), 5.25);
   engine.resetPosition(); assert.equal(engine.elapsed(), 0);
+});
+
+test('pending playback start uses and revalidates the latest authoritative settings', async () => {
+  for (const invalid of [false, true]) {
+    const engine = new AudioEngine(); let release, toneMix, applied;
+    const gate = new Promise((resolve) => { release = resolve; });
+    engine.initialize = () => {
+      engine.context = { sampleRate: 44100, currentTime: 0, resume: () => gate };
+      engine.transport = { gain: { cancelScheduledValues() {}, setValueAtTime() {} } };
+    };
+    engine.rebuildTone = () => { toneMix = structuredClone(engine.mix); };
+    engine.rescheduleEnvelope = () => {};
+    engine.update = (mix) => { engine.mix = structuredClone(mix); applied = structuredClone(mix); };
+    const starting = engine.play(defaultMix()), latest = defaultMix();
+    latest.beat = 20; latest.carrier = invalid ? 1 : 500;
+    engine.update(latest); release();
+    if (invalid) { await assert.rejects(starting, /positive frequency/); assert.equal(engine.playing, false); assert.equal(toneMix, undefined); }
+    else { await starting; assert.deepEqual(toneMix, latest); assert.deepEqual(applied, latest); assert.equal(engine.playing, true); }
+  }
+});
+
+test('matching-time PCM overlap preserves stereo, endpoints, sample count and input tails', () => {
+  const channels = [Float32Array.of(1, 1, 1, 1, .25), Float32Array.of(-1, -1, -1, -1, -.25)];
+  const previous = [Float32Array.of(0, .1, .2, .3), Float32Array.of(0, -.1, -.2, -.3)], copy = previous.map((channel) => channel.slice());
+  blendRenderOverlap(channels, previous);
+  assert.equal(channels[0].length, 5); assert.equal(channels[0][0], 0); assert.equal(channels[0][3], 1); assert.equal(channels[0][4], .25);
+  for (let i = 0; i < channels[0].length; i++) assert(channels[0][i] === -channels[1][i]);
+  assert.deepEqual(previous, copy);
+  const unchanged = channels.map((channel) => channel.slice()); blendRenderOverlap(channels, null); assert.deepEqual(channels, unchanged);
+  const single = [Float32Array.of(1), Float32Array.of(-1)]; blendRenderOverlap(single, previous); assert.equal(single[0][0], 0); assert.equal(single[1][0], 0);
 });
 
 test('pulse width, softness and depth affect the envelope without hard edges', () => {
@@ -51,6 +81,18 @@ test('noise follows the same mute and solo precedence as environmental layers', 
   mix.noise.pink.muted = true; assert.equal(audibleLayers(mix).size, 0);
 });
 
+test('unsupported live tone settings mute immediately without muting environmental layers', () => {
+  const parameter = () => ({ events: [], cancelScheduledValues(time) { this.events.push(['cancel', time]); }, setValueAtTime(value, time) { this.events.push(['set', value, time]); }, setTargetAtTime(value, time) { this.events.push(['target', value, time]); } });
+  const mix = defaultMix(); mix.mode = 'isochronic'; mix.beat = 120; mix.carrier = 5000; mix.sounds.stream.enabled = true;
+  const context = { currentTime: 2, sampleRate: 32000 }, tone = { output: { gain: parameter() } }, master = { gain: parameter() };
+  const stream = { source: {}, gain: { gain: parameter() }, pan: { pan: parameter() } };
+  setLayerLevels(context, mix, tone, new Map([['stream', stream]]), master);
+  assert.deepEqual(tone.output.gain.events, [['cancel', 2], ['set', 0, 2]]);
+  assert.deepEqual(stream.gain.gain.events, [['target', mix.sounds.stream.level / 100 * .38, 2]]);
+  context.sampleRate = 48000; setLayerLevels(context, mix, tone, new Map([['stream', stream]]), master);
+  assert.deepEqual(tone.output.gain.events.at(-1), ['target', mix.toneLevel / 100 * .46, 2]);
+});
+
 test('WAV headers and PCM use stereo signed 16-bit little-endian framing', () => {
   const view = new DataView(wavHeader(3, 48000));
   assert.equal(view.getUint32(4, true), 48); assert.equal(view.getUint32(40, true), 12);
@@ -70,7 +112,8 @@ test('WAV rejects silence and unbounded duration and derives program lengths', (
 test('cancelled export detaches from held audio without breaking a shared consumer', async () => {
   let release;
   const shared = new Promise((resolve) => { release = resolve; }), abort = new AbortController();
-  const waiting = renderWav(defaultMix(), 1, 44100, () => shared, () => {}, abort.signal);
+  const mix = defaultMix(); mix.sounds.stream.enabled = true;
+  const waiting = renderWav(mix, 1, 44100, () => shared, () => {}, abort.signal);
   abort.abort();
   await assert.rejects(waiting, { name: 'AbortError' });
   assert.equal(getEventListeners(abort.signal, 'abort').length, 0);

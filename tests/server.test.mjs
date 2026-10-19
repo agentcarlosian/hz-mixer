@@ -40,7 +40,7 @@ test('built-site preview serves the project prefix and correct runtime MIME type
       child.once('error', (error) => { clearTimeout(timer); reject(error); });
       child.stdout.on('data', (chunk) => { output += chunk; const match = output.match(/http:\/\/127\.0\.0\.1:\d+\/hz-mixer\//); if (match) { clearTimeout(timer); resolve(match[0]); } });
     });
-    for (const [path, type] of [['', 'text/html'], ['src/mp3-export.mjs','text/javascript'], ['styles.css','text/css'], ['assets/audio/stream.mp3','audio/mpeg'], ['vendor/lamejs/lamejs.iife.js','text/javascript'], ['vendor/lamejs/source.tar.gz','application/gzip']]) {
+    for (const [path, type] of [['', 'text/html'], ['src/mp3-export.mjs','text/javascript'], ['styles.css','text/css'], ['assets/audio/stream.mp3','audio/mpeg'], ['assets/audio/bell-33.wav','audio/wav'], ['vendor/lamejs/lamejs.iife.js','text/javascript'], ['vendor/lamejs/source.tar.gz','application/gzip']]) {
       const response = await fetch(url + path, { method: 'HEAD' }); assert.equal(response.status, 200, path); assert(response.headers.get('content-type').startsWith(type), path);
     }
     const origin = new URL(url).origin;

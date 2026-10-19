@@ -38,8 +38,8 @@ After committing reviewed changes, clone locally into a clean temporary director
 
 1. Open the portable HTML directly from disk in intended browsers; check no autoplay/network dependencies and embedded credits/version.
 2. Audition all methods and environmental loop transitions at comfortable volume.
-3. Check pause, sweep/stages, fades/Stop, mute/solo, pan and JSON backup/import. Open Info and the full guide; return to the mixer and confirm current audio/settings are unchanged. Check the warning before Play and the embedded offline guide's section links and Back navigation.
-4. Export WAV and MP3 through download and native Save As where supported. Test cancel and confirm no completed partial audio file is saved.
+3. Check pause, sweep/stages, fades/Stop, mute/solo, pan and JSON backup/import. Open Info and the full guide; return to the mixer and confirm current audio/settings are unchanged. Check the safety notice in Info and the embedded offline guide's section links and Back navigation. Reset should return to a tone-only mix with every recording, noise channel and bell off.
+4. Export WAV and MP3 through download and native Save As where supported. Test cancellation before Finalizing and confirm no completed partial audio file is saved. During Finalizing, confirm Cancel is disabled, Escape keeps the dialog open, and success or commit failure restores usable controls.
 5. Check mobile/Safari/macOS listening before claiming support there. Responsive automated layouts are not listening validation.
 
 Automated Firefox checks use loopback HTTP, not file-origin playback. The native OS picker and perceptual loop quality are not automated. Hosted CI/live Pages are separate checks, not implied by local success.

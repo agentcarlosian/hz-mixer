@@ -1,3 +1,6 @@
+import { PULSE_HARMONICS, SOUNDS, NOISES } from './mix-state.mjs';
+import { generatorSpecs, effectsFor, studioRange, timbreCoefficients, STUDIO_HARMONICS } from './studio-state.mjs';
+
 export function sessionSeconds(mix) {
   return mix.automation.kind === 'sequence' ? mix.automation.stages.reduce((sum, stage) => sum + stage.seconds, 0) : mix.duration;
 }
@@ -138,9 +141,33 @@ export function scheduleEnvelope(parameter, mix, from, until, contextStart = 0, 
   }
 }
 
-export function signalError(mix) {
-  if (!['binaural', 'monaural'].includes(mix.mode)) return '';
+export function signalError(mix, sampleRate) {
   const rates = mix.automation.kind === 'fixed' ? [mix.beat] : mix.automation.kind === 'sweep' ? [mix.automation.sweep.start, mix.automation.sweep.end] : mix.automation.stages.flatMap((stage) => [stage.start, stage.type === 'hold' ? stage.start : stage.end]);
-  const maximum = Math.max(...rates);
-  return mix.carrier <= maximum / 2 ? 'For this two-tone rate, raise the carrier above ' + (maximum / 2).toFixed(2) + ' Hz so both tones have a positive frequency.' : '';
+  for (const voice of generatorSpecs(mix).filter((item) => item.enabled)) {
+    const maximum = Math.max(...(voice.program === 'follow' ? rates : voice.program === 'sweep' ? [voice.sweep.start, voice.sweep.end] : [voice.beat]));
+    const carrier = studioRange(mix, voice.id + ':carrier', voice.carrier), profile = effectsFor(mix, voice.id), pitch = profile.pitch;
+    const deviation = pitch.mode === 'fm' ? pitch.depth : pitch.mode === 'pm' ? pitch.depth / 360 * Math.PI * 2 * pitch.rate : 0;
+    const prefix = voice.id === 'tone' ? '' : voice.id.replace('voice-', 'Tone ') + ': ';
+    const split = ['binaural', 'monaural'].includes(voice.mode) ? maximum / 2 : 0;
+    if (carrier.min <= split) return prefix + 'For this two-tone rate, raise the carrier above ' + split.toFixed(2) + ' Hz so both tones have a positive frequency.';
+    if (carrier.min - split - deviation <= 0) return prefix + 'Raise the carrier or reduce pitch modulation depth to keep a positive frequency.';
+    if (sampleRate !== undefined) {
+      if (!Number.isFinite(sampleRate) || sampleRate <= 0) return 'The audio sample rate is unavailable.';
+      const weights = timbreCoefficients(voice.timbre); let harmonic = 1;
+      weights.forEach((value, index) => { if (value) harmonic = index; });
+      const amRate = Math.max(profile.am.sync ? maximum : profile.am.rate, profile.am.channels === 'independent' ? profile.am.rightRate : 0);
+      const amBudget = profile.am.enabled ? amRate * (profile.am.shape === 'sine' ? 1 : STUDIO_HARMONICS) : 0;
+      const panBudget = profile.pan.enabled ? profile.pan.rate * STUDIO_HARMONICS : 0;
+      const highest = harmonic * (carrier.max + split + deviation + (pitch.mode === 'off' ? 0 : pitch.rate)) + (voice.mode === 'isochronic' ? maximum * PULSE_HARMONICS : 0) + amBudget + panBudget;
+      if (highest >= sampleRate / 2) return prefix + 'These tone settings exceed the ' + (sampleRate / 1000).toFixed(1) + ' kHz audio sample rate. Lower the carrier, rate, harmonics or modulation depth.';
+    }
+  }
+  if (sampleRate !== undefined && Number.isFinite(sampleRate)) {
+    const active = [...generatorSpecs(mix).filter((voice) => voice.enabled).map((voice) => voice.id), ...[...SOUNDS, ...NOISES].filter(({ id }) => (mix.sounds[id] || mix.noise[id]).enabled).map(({ id }) => id)];
+    for (const id of active) {
+      const filter = effectsFor(mix, id).filter;
+      if (filter.type !== 'off' && studioRange(mix, id + ':filterFrequency', filter.frequency).max >= sampleRate / 2) return 'Filter frequency exceeds this audio sample rate. Lower the filter cutoff.';
+    }
+  }
+  return '';
 }

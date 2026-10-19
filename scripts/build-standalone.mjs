@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { Script } from 'node:vm';
-import { SOUNDS } from '../src/mix-state.mjs';
+import { RECORDINGS, recordingPath } from '../src/mix-state.mjs';
 import { guideMarkup } from './guide-lib.mjs';
 import { root, read, metadata, modulePaths, iconNames, creditsMarkup, creditsListener, stampVersion, replaceOnce } from './build-lib.mjs';
 
@@ -12,8 +12,8 @@ export async function renderStandaloneHtml() {
   const icons = {};
   for (const name of iconNames) icons[name] = 'data:image/svg+xml;base64,' + (await readFile(new URL('assets/icons/' + name + '.svg', root))).toString('base64');
   const audioBlocks = [];
-  for (const { id } of SOUNDS) {
-    const bytes = await readFile(new URL('assets/audio/' + id + '.mp3', root));
+  for (const { id } of RECORDINGS) {
+    const bytes = await readFile(new URL(recordingPath(id), root));
     audioBlocks.push('<script type="audio/base64" id="embedded-audio-' + id + '">' + bytes.toString('base64') + '</script>');
   }
   const resources = `
@@ -71,5 +71,5 @@ export async function renderStandaloneHtml() {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const html = await renderStandaloneHtml(), destination = new URL('Hz Mixer.html', root);
   await writeFile(destination, html, 'utf8');
-  console.log(JSON.stringify({ file: fileURLToPath(destination), bytes: Buffer.byteLength(html), sha256: createHash('sha256').update(html).digest('hex'), version: metadata.version, recordings: SOUNDS.length, icons: iconNames.length }, null, 2));
+  console.log(JSON.stringify({ file: fileURLToPath(destination), bytes: Buffer.byteLength(html), sha256: createHash('sha256').update(html).digest('hex'), version: metadata.version, recordings: RECORDINGS.length, icons: iconNames.length }, null, 2));
 }

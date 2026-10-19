@@ -1,14 +1,20 @@
-import { SOUNDS, NOISES, BANDS, PRESETS, defaultMix, normalizeMix, normalizeLibrary, audibleLayers } from './mix-state.mjs';
+import { SOUNDS, NOISES, BELLS, BANDS, PRESETS, BEAT_MIN, BEAT_MAX, defaultMix, normalizeMix, normalizeLibrary, audibleLayers, layerSettings } from './mix-state.mjs';
 import { AudioEngine } from './audio-engine.js';
 import { iconUrl } from './resources.js';
 import { programAt, sessionSeconds, signalError } from './program.mjs';
-import { makeBackup, makeMixFile, parseBackup, mergeImports } from './library.mjs';
-import { renderWav, wavError, exportSeconds } from './wav-export.mjs';
+import { makeBackup, makeMixFile, parseBackup, mergeImports, MAX_JSON_BYTES } from './library.mjs';
+import { renderWav, wavError, exportSeconds, checkExportCancelled } from './wav-export.mjs';
 import { renderMp3, mp3Error } from './mp3-export.mjs';
 import { MatrixRain } from './matrix-rain.mjs';
 import { initializeGuide } from './guide.js';
+import { initializeMixerUI } from './mixer-ui.js';
+import { randomMix } from './random-mix.mjs';
+import { mixSummary, matchesMixSearch } from './mix-display.mjs';
+import { initializeUIPolish } from './ui-polish.js';
 
 const $ = (selector) => document.querySelector(selector);
+let mixerUI = null;
+let uiPolish = null;
 $('#privacy-open').addEventListener('click', () => $('#privacy-dialog').showModal());
 $('#info-open').addEventListener('click', () => $('#info-dialog').showModal());
 $('#guide-link').addEventListener('click', () => $('#info-dialog').close());
@@ -18,12 +24,12 @@ const LIBRARY_KEY = 'beat-mixer.library.v1';
 const THEME_KEY = 'hz-mixer.theme.v2';
 const MATRIX_MOTION_KEY = 'hz-mixer.matrix-motion.v1';
 const FAVORITES_KEY = 'beat-mixer.favorites.v1';
-const allLayers = [...SOUNDS, ...NOISES];
-const layerConfig = (id) => mix.sounds[id] || mix.noise[id];
+const allLayers = [...SOUNDS, ...NOISES, ...BELLS];
+const layerConfig = (id) => layerSettings(mix, id);
 function readStorage(key) {
   try {
     const raw = localStorage.getItem(key);
-    return raw && raw.length < 100000 ? JSON.parse(raw) : null;
+    return raw && raw.length < MAX_JSON_BYTES ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 const restored = readStorage(CURRENT_KEY);
@@ -31,6 +37,7 @@ let mix = normalizeMix(restored?.mix);
 let library = normalizeLibrary(readStorage(LIBRARY_KEY));
 let selectedMix = [...PRESETS.map((entry) => 'preset:' + entry.id), ...library.map((entry) => 'saved:' + entry.id)].includes(restored?.selection) ? restored.selection : 'custom';
 let suggestedName = typeof restored?.name === 'string' ? restored.name.slice(0, 40) : '';
+let restorePoint = null;
 let view = restored?.view === 'spectrum' ? 'spectrum' : 'waveform';
 let themePreference = document.documentElement.dataset.themePreference || 'system';
 const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
@@ -56,12 +63,14 @@ const channelMarkup = (layers) => layers.map(({ id, name, detail, duration, chan
   '<article class="sound-row" data-sound="' + id + '">' +
   '<div class="sound-top"><span class="sound-icon ' + color + '"><img src="' + iconUrl(icon) + '" alt="" /></span><div class="sound-title"><h3>' + name + '</h3><small>' + detail + (duration ? ' &middot; ' + duration : '') + '</small></div>' +
   '<label class="enable-toggle"><input type="checkbox" data-enable="' + id + '" aria-label="Enable ' + name + '" /><span></span></label></div>' +
+  (BELLS.some((bell) => bell.id === id) ? '<div class="bell-repeat"><label for="bell-repeat-' + id + '">Repeat every</label><div class="bell-interval-controls"><div class="number-field"><input id="bell-repeat-' + id + '" type="number" data-repeat="' + id + '" min="0.25" max="120" step="any" inputmode="decimal" aria-label="' + name + ' repeat interval in minutes" /><span>min</span></div><div class="bell-repeat-stepper" role="group" aria-label="' + name + ' interval steps"><button type="button" class="icon-button" data-repeat-adjust="' + id + '" data-step="-1" title="Decrease interval by 15 seconds" aria-label="Decrease ' + name + ' interval by 15 seconds"><img src="' + iconUrl('arrow-down') + '" alt="" /></button><button type="button" class="icon-button" data-repeat-adjust="' + id + '" data-step="1" title="Increase interval by 15 seconds" aria-label="Increase ' + name + ' interval by 15 seconds"><img src="' + iconUrl('arrow-up') + '" alt="" /></button></div></div></div>' : '') +
   '<div class="channel-strip"><label class="field"><span>Level <output data-level-value="' + id + '"></output></span><input type="range" data-volume="' + id + '" aria-label="' + name + ' volume" min="0" max="100" /></label>' +
   '<div class="channel-tools"><button class="icon-button mute" data-mute="' + id + '" aria-label="Mute ' + name + '" title="Mute ' + name + '" aria-pressed="false"><img src="' + iconUrl('volume-x') + '" alt="" /></button><button class="icon-button solo" data-solo="' + id + '" aria-label="Solo ' + name + '" title="Solo ' + name + '" aria-pressed="false"><img src="' + iconUrl('headphones') + '" alt="" /></button></div></div>' +
   '<div class="pan-field"><div class="pan-heading"><span>' + (channels || 'Mono') + ' balance</span><button data-center="' + id + '" aria-label="Center ' + name + ' balance" title="Reset balance to center"><output data-pan-value="' + id + '">Center</output></button></div><input type="range" data-pan="' + id + '" aria-label="' + name + ' balance" min="-100" max="100" step="1" /></div><p class="track-state" data-track-state="' + id + '"></p></article>'
 ).join('');
 $('#sound-list').innerHTML = channelMarkup(SOUNDS);
 $('#noise-list').innerHTML = channelMarkup(NOISES);
+$('#bell-list').innerHTML = channelMarkup(BELLS);
 
 const frequencyFields = [
   { input: $('#beat-value'), slider: $('#beat-rate'), key: 'beat', decimals: 2 },
@@ -76,6 +85,7 @@ function applyTheme() {
   $('#theme-mode').value = themePreference;
   matrixRain.setActive(document.documentElement.dataset.theme === 'matrix' && !document.documentElement.hasAttribute('data-guide-open'));
   drawProgram();
+  mixerUI?.drawPreview();
 }
 $('#matrix-motion').addEventListener('click', () => {
   matrixRain.setPaused(!matrixRain.paused);
@@ -107,9 +117,9 @@ function formatTime(seconds) {
 function renderLibrary() {
   const select = $('#mix-select');
   select.replaceChildren(new Option('Custom mix', 'custom'));
-  const band = $('#band-filter').value, method = $('#method-filter').value, search = $('#preset-search').value.trim().toLowerCase(), onlyFavorites = $('#favorites-only').checked;
-  const matches = (entry, id) => (band === 'all' || entry.band === band) && (method === 'all' || entry.mix.mode === method) && (!onlyFavorites || favorites.has(id)) && entry.name.toLowerCase().includes(search);
-  for (const [bandId, name] of [...BANDS.map((b) => [b.id, b.name]), ['nature', 'Nature only']]) {
+  const search = $('#preset-search').value.trim().toLowerCase(), onlyFavorites = $('#favorites-only').checked;
+  const matches = (entry, id) => (!onlyFavorites || favorites.has(id)) && matchesMixSearch(entry, search);
+  for (const [bandId, name] of [...BANDS.map((b) => [b.id, b.name]), ['nature', 'Environment only']]) {
     const group = document.createElement('optgroup');
     group.label = name;
     PRESETS.filter((preset) => preset.band === bandId && matches(preset, 'preset:' + preset.id)).forEach((preset) => group.append(new Option((favorites.has('preset:' + preset.id) ? '* ' : '') + preset.name, 'preset:' + preset.id)));
@@ -118,7 +128,7 @@ function renderLibrary() {
   if (library.length) {
     const saved = document.createElement('optgroup');
     saved.label = 'My mixes';
-    library.filter((entry) => entry.name.toLowerCase().includes(search) && !onlyFavorites).forEach((entry) => saved.append(new Option(entry.name, 'saved:' + entry.id)));
+    library.filter((entry) => matchesMixSearch(entry, search) && !onlyFavorites).forEach((entry) => saved.append(new Option(entry.name, 'saved:' + entry.id)));
     if (saved.children.length) select.append(saved);
   }
   if (selectedMix !== 'custom' && ![...select.options].some((o) => o.value === selectedMix)) {
@@ -175,6 +185,10 @@ function render(preserveInput = false) {
     $('[data-enable="' + id + '"]').checked = config.enabled;
     $('[data-volume="' + id + '"]').value = config.level;
     $('[data-pan="' + id + '"]').value = config.pan;
+    if (mix.bells[id]) {
+      $('[data-repeat="' + id + '"]').value = Number((config.interval / 60).toFixed(4));
+      renderBellIntervalSteps(id, config.interval);
+    }
     $('[data-level-value="' + id + '"]').value = config.level + '%';
     $('[data-pan-value="' + id + '"]').value = config.pan === 0 ? 'Center' : (config.pan < 0 ? 'L ' : 'R ') + Math.abs(config.pan) + '%';
     pressed('[data-mute="' + id + '"]', config.muted);
@@ -188,7 +202,7 @@ function render(preserveInput = false) {
     if (audible.has(id)) count += 1;
   }
   $('#active-count').textContent = count + (count === 1 ? ' layer' : ' layers');
-  const solo = mix.toneSolo || allLayers.some(({ id }) => layerConfig(id).solo);
+  const solo = mix.toneSolo || allLayers.some(({ id }) => layerConfig(id).solo) || mix.studio.voices.some((voice) => voice.solo);
   $('#solo-note').textContent = solo ? 'Solo active' : 'Independent audio layers';
   $('#clear-solo').hidden = !solo;
   document.querySelectorAll('[data-view]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
@@ -197,21 +211,27 @@ function render(preserveInput = false) {
   $('#favorite-mix').disabled = !selectedMix.startsWith('preset:');
   pressed('#favorite-mix', favorites.has(selectedMix));
   $('#favorite-mix').title = $('#favorite-mix').ariaLabel = favorites.has(selectedMix) ? 'Remove favorite preset' : 'Favorite preset';
-  $('#preset-summary').textContent = mix.mode === 'off' ? 'Nature only' : mix.mode + ' / ' + (mix.automation.kind === 'fixed' ? mix.beat.toFixed(2) + ' Hz' : mix.automation.kind) + ' / ' + mix.carrier + ' Hz carrier';
+  $('#preset-summary').textContent = mixSummary(mix);
   renderTransport();
+  mixerUI?.render();
+  uiPolish?.syncLevels();
 }
 function changed(preserveInput = false) {
+  restorePoint = null;
   selectedMix = 'custom';
   mix = normalizeMix(mix);
-  engine.update(mix);
+  engine.update(mixerUI?.playbackMix(mix) || mix);
   render(preserveInput);
   persistCurrent();
 }
 function applyMix(nextMix, selection, name) {
   const next = normalizeMix(nextMix);
+  restorePoint = null;
   mix = next;
+  $('#stage-error').textContent = '';
   selectedMix = selection;
   suggestedName = name;
+  mixerUI?.resetComparison();
   engine.update(mix);
   engine.resetPosition();
   render();
@@ -225,6 +245,7 @@ function renderTransport() {
   $('#play-button').disabled = busy || engine.stopping;
   $('#stop-button').disabled = !engine.stopping && (busy || !['Playing', 'Paused'].includes(sessionState));
   $('#stop-button').title = engine.stopping ? 'Stop immediately' : 'Stop session';
+  $('#restore-mix').disabled = !restorePoint;
   $('#status').textContent = engine.stopping ? 'Fading out...' : busy ? engine.playing ? 'Pausing...' : 'Starting...' : sessionState;
   $('#status-dot').classList.toggle('playing', playing);
   $('#scope-state').textContent = mix.masterMuted ? 'Master muted' : sessionState;
@@ -234,6 +255,7 @@ function tickTimer() {
   if (engine.tick() && !busy) { stopSession(true); return; }
   $('#remaining').value = sessionSeconds(mix) ? formatTime(sessionSeconds(mix) - engine.elapsed()) : '--:--';
   drawProgram();
+  mixerUI?.drawPreview();
 }
 async function togglePlayback() {
   if (busy) return;
@@ -244,12 +266,13 @@ async function togglePlayback() {
       await engine.pause();
       sessionState = 'Paused';
     } else {
-      await engine.play(mix);
+      await engine.play(mixerUI?.playbackMix(mix) || mix);
       sessionState = 'Playing';
     }
   } catch (error) {
     await engine.pause();
     sessionState = 'Audio unavailable';
+    $('#signal-error').textContent = error.message;
     notify(error.message);
   } finally { busy = false; renderTransport(); }
 }
@@ -279,8 +302,9 @@ for (const [id, key] of [['#master-level', 'master'], ['#tone-level', 'toneLevel
   $(id).addEventListener('input', () => { mix[key] = Number($(id).value); changed(); });
 }
 for (const field of frequencyFields) {
-  field.slider.addEventListener('input', () => { mix[field.key] = Number(field.slider.value); if (field.key === 'beat') mix.automation.kind = 'fixed'; changed(); });
+  field.slider.addEventListener('input', () => { if (field.key === 'beat' && mix.automation.kind !== 'fixed') return; mix[field.key] = Number(field.slider.value); if (field.key === 'beat') mix.automation.kind = 'fixed'; changed(); });
   field.input.addEventListener('input', () => {
+    if (field.key === 'beat' && mix.automation.kind !== 'fixed') return;
     const value = field.input.valueAsNumber;
     if (!Number.isFinite(value) || value < Number(field.input.min) || value > Number(field.input.max)) return;
     mix[field.key] = value;
@@ -288,6 +312,7 @@ for (const field of frequencyFields) {
     changed(true);
   });
   const commit = () => {
+    if (field.key === 'beat' && mix.automation.kind !== 'fixed') return;
     if (!Number.isFinite(field.input.valueAsNumber)) { render(); return; }
     const next = normalizeMix({ ...mix, [field.key]: field.input.valueAsNumber });
     if (next[field.key] === mix[field.key]) render();
@@ -322,18 +347,79 @@ for (const { id } of allLayers) {
   }
   $('[data-center="' + id + '"]').addEventListener('click', () => { layerConfig(id).pan = 0; changed(); });
 }
+function bellIntervalSeconds(id) {
+  const value = $('[data-repeat="' + id + '"]').valueAsNumber;
+  return Number.isFinite(value) && value >= .25 && value <= 120 ? Math.round(value * 60) : mix.bells[id].interval;
+}
+function renderBellIntervalSteps(id, seconds = bellIntervalSeconds(id)) {
+  $('[data-repeat-adjust="' + id + '"][data-step="-1"]').disabled = seconds <= 15;
+  $('[data-repeat-adjust="' + id + '"][data-step="1"]').disabled = seconds >= 7200;
+}
+function adjustBellInterval(id, direction) {
+  const seconds = Math.min(7200, Math.max(15, bellIntervalSeconds(id) + direction * 15));
+  if (seconds === mix.bells[id].interval) {
+    $('[data-repeat="' + id + '"]').value = Number((seconds / 60).toFixed(4));
+    renderBellIntervalSteps(id, seconds);
+    return;
+  }
+  mix.bells[id].interval = seconds;
+  changed();
+}
+for (const { id } of BELLS) {
+  const repeat = $('[data-repeat="' + id + '"]');
+  repeat.addEventListener('input', () => renderBellIntervalSteps(id));
+  repeat.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    adjustBellInterval(id, event.key === 'ArrowDown' ? -1 : 1);
+  });
+  document.querySelectorAll('[data-repeat-adjust="' + id + '"]').forEach((button) => {
+    button.addEventListener('click', () => adjustBellInterval(id, Number(button.dataset.step)));
+  });
+  repeat.addEventListener('change', (event) => {
+    const value = Number(event.target.value);
+    if (Number.isFinite(value) && value >= .25 && value <= 120) mix.bells[id].interval = Math.round(value * 60);
+    changed();
+  });
+}
 $('#clear-solo').addEventListener('click', () => {
   mix.toneSolo = false;
   allLayers.forEach(({ id }) => { layerConfig(id).solo = false; });
+  mix.studio.voices.forEach((voice) => { voice.solo = false; });
   changed();
 });
 $('#mix-select').addEventListener('change', (event) => {
   const selection = event.target.value;
   const entry = selection.startsWith('preset:') ? PRESETS.find((x) => 'preset:' + x.id === selection) : library.find((x) => 'saved:' + x.id === selection);
   if (entry) applyMix(entry.mix, selection, entry.name);
-  else { selectedMix = 'custom'; render(); }
+  else { restorePoint = null; selectedMix = 'custom'; render(); }
 });
-$('#reset-mix').addEventListener('click', () => applyMix(defaultMix(), 'custom', ''));
+function applyReversibleMix(nextMix) {
+  const previous = { mix: normalizeMix(mix), selection: selectedMix, name: suggestedName };
+  applyMix(nextMix, 'custom', '');
+  restorePoint = previous;
+  $('#restore-mix').disabled = false;
+}
+$('#reset-mix').addEventListener('click', () => {
+  applyReversibleMix(defaultMix());
+  uiPolish?.animateCommand($('#reset-mix'), 'reset');
+  $('#mix-action-status').textContent = 'Mixer reset';
+});
+$('#randomize-mix').addEventListener('click', () => {
+  applyReversibleMix(randomMix(mix, { advanced: document.querySelector('.app-shell').dataset.interfaceMode === 'advanced', sampleRate: engine.context?.sampleRate || 32000 }));
+  uiPolish?.animateCommand($('#randomize-mix'), 'dice');
+  $('#mix-action-status').textContent = 'New random mix';
+});
+$('#restore-mix').addEventListener('click', () => {
+  if (!restorePoint) return;
+  const previous = restorePoint;
+  const entry = previous.selection.startsWith('preset:') ? PRESETS.find((item) => 'preset:' + item.id === previous.selection)
+    : library.find((item) => 'saved:' + item.id === previous.selection);
+  const selection = entry && entry.name === previous.name && JSON.stringify(entry.mix) === JSON.stringify(previous.mix) ? previous.selection : 'custom';
+  applyMix(previous.mix, selection, previous.name);
+  renderLibrary();
+  $('#mix-action-status').textContent = 'Previous mix restored';
+});
 $('#save-mix').addEventListener('click', () => {
   $('#mix-name').value = suggestedName;
   $('#save-error').textContent = '';
@@ -381,6 +467,8 @@ function renderProgram(preserveInput) {
   const kind = mix.automation.kind;
   $('input[name="program"][value="' + kind + '"]').checked = true;
   $('#sweep-controls').hidden = kind !== 'sweep';
+  $('#fixed-rate-control').hidden = kind !== 'fixed';
+  $('#beat-value').disabled = $('#beat-rate').disabled = kind !== 'fixed';
   $('#session-builder').hidden = kind !== 'sequence';
   $('#program-monitor').hidden = kind === 'fixed';
   $('#pulse-controls').hidden = mix.mode !== 'isochronic';
@@ -388,30 +476,38 @@ function renderProgram(preserveInput) {
   for (const key of ['start', 'end', 'seconds', 'curve', 'repeat']) set('#sweep-' + key, mix.automation.sweep[key]);
   for (const key of ['in', 'out']) set('#fade-' + key, mix.fades[key]);
   for (const key of ['width', 'softness', 'depth']) { set('#pulse-' + key, mix.pulse[key]); $('#pulse-' + key + '-value').value = mix.pulse[key] + '%'; }
-  $('#signal-error').textContent = signalError(mix);
-  if (kind === 'sequence' && !document.activeElement?.closest('.stage-row')) renderStages();
+  $('#signal-error').textContent = signalError(mix, engine.context?.sampleRate);
+  if (!document.activeElement?.closest('.stage-row')) renderStages();
   $('#session-total').value = formatTime(mix.automation.stages.reduce((sum, stage) => sum + stage.seconds, 0));
   $('#add-stage').disabled = mix.automation.stages.length >= 16 || mix.automation.stages.reduce((sum, stage) => sum + stage.seconds, 0) > 7195;
   drawProgram();
 }
 function renderStages() {
   const list = $('#stage-list');
-  if (list.children.length !== mix.automation.stages.length) list.innerHTML = mix.automation.stages.map((stage, i) => '<div class="stage-row" data-stage="' + i + '"><span class="stage-number">' + (i + 1) + '</span>' +
-    '<label class="compact-field">Type<select data-stage-key="type"><option value="hold"' + (stage.type === 'hold' ? ' selected' : '') + '>Hold</option><option value="sweep"' + (stage.type === 'sweep' ? ' selected' : '') + '>Sweep</option></select></label>' +
-    '<label class="compact-field">Start Hz<input data-stage-key="start" type="number" min="0.5" max="40" step="0.01" value="' + stage.start.toFixed(2) + '" /></label>' +
-    '<label class="compact-field">End Hz<input data-stage-key="end" type="number" min="0.5" max="40" step="0.01" value="' + stage.end.toFixed(2) + '"' + (stage.type === 'hold' ? ' disabled' : '') + ' /></label>' +
-    '<label class="compact-field">Seconds<input data-stage-key="seconds" type="number" min="5" max="3600" step="1" value="' + stage.seconds + '" /></label>' +
-    '<label class="compact-field">Curve<select data-stage-key="curve"' + (stage.type === 'hold' ? ' disabled' : '') + '><option value="linear"' + (stage.curve === 'linear' ? ' selected' : '') + '>Linear</option><option value="smooth"' + (stage.curve === 'smooth' ? ' selected' : '') + '>Smooth</option></select></label>' +
-    '<div class="stage-actions">' + [['up', 'arrow-up', 'Move stage up', i === 0], ['down', 'arrow-down', 'Move stage down', i === mix.automation.stages.length - 1], ['remove', 'trash', 'Remove stage', mix.automation.stages.length === 1]].map(([action, icon, label, disabled]) => '<button class="icon-button" data-stage-action="' + action + '" title="' + label + '" aria-label="' + label + '"' + (disabled ? ' disabled' : '') + '><img src="' + iconUrl(icon) + '" alt="" /></button>').join('') + '</div></div>').join('');
+  if (list.children.length !== mix.automation.stages.length) list.innerHTML = mix.automation.stages.map((stage, i) => '<div class="stage-row" data-stage="' + i + '" role="group" aria-label="Stage ' + (i + 1) + '"><div class="stage-header"><span class="stage-number">Stage ' + (i + 1) + '</span>' +
+    '<label class="compact-field stage-type"><span class="sr-only">Stage ' + (i + 1) + ' type</span><select data-stage-key="type"><option value="hold">Hold</option><option value="sweep">Sweep</option></select></label>' +
+    '<div class="stage-actions">' + [['up', 'arrow-up', 'Move stage up', i === 0], ['down', 'arrow-down', 'Move stage down', i === mix.automation.stages.length - 1], ['remove', 'trash', 'Remove stage', mix.automation.stages.length === 1]].map(([action, icon, label, disabled]) => '<button class="icon-button" data-stage-action="' + action + '" title="' + label + '" aria-label="' + label + '"' + (disabled ? ' disabled' : '') + '><img src="' + iconUrl(icon) + '" alt="" /></button>').join('') + '</div></div><div class="stage-fields">' +
+    '<label class="compact-field"><span data-stage-rate-label>Rate Hz</span><input data-stage-key="start" type="number" min="' + BEAT_MIN + '" max="' + BEAT_MAX + '" step="0.01" /></label>' +
+    '<label class="compact-field" data-stage-sweep>End Hz<input data-stage-key="end" type="number" min="' + BEAT_MIN + '" max="' + BEAT_MAX + '" step="0.01" /></label>' +
+    '<fieldset class="compact-field stage-duration"><legend>Duration (min : sec)</legend><div class="stage-duration-inputs"><input type="number" min="0" max="60" step="1" data-stage-duration="minutes" aria-label="Stage ' + (i + 1) + ' duration minutes" /><span aria-hidden="true">:</span><input type="number" min="0" max="59" step="1" data-stage-duration="seconds" aria-label="Stage ' + (i + 1) + ' duration seconds" /></div></fieldset>' +
+    '<label class="compact-field" data-stage-sweep>Transition<select data-stage-key="curve"><option value="linear">Linear</option><option value="smooth">Smooth</option></select></label></div></div>').join('');
   for (const [i, stage] of mix.automation.stages.entries()) {
     const row = list.children[i];
-    for (const key of ['type', 'start', 'end', 'seconds', 'curve']) {
+    for (const key of ['type', 'start', 'end', 'curve']) {
       const field = row.querySelector('[data-stage-key="' + key + '"]');
       const value = key === 'start' || key === 'end' ? stage[key].toFixed(2) : String(stage[key]);
       if (field.value !== value) field.value = value;
       field.disabled = stage.type === 'hold' && (key === 'end' || key === 'curve');
     }
+    row.querySelector('[data-stage-rate-label]').textContent = stage.type === 'hold' ? 'Rate Hz' : 'Start Hz';
+    for (const field of row.querySelectorAll('[data-stage-sweep]')) field.hidden = stage.type !== 'sweep';
+    row.querySelector('[data-stage-duration="minutes"]').value = Math.floor(stage.seconds / 60);
+    row.querySelector('[data-stage-duration="seconds"]').value = String(stage.seconds % 60).padStart(2, '0');
   }
+}
+function stageDurationValue(row) {
+  const minutes = row.querySelector('[data-stage-duration="minutes"]').valueAsNumber, seconds = row.querySelector('[data-stage-duration="seconds"]').valueAsNumber;
+  return Number.isInteger(minutes) && minutes >= 0 && minutes <= 60 && Number.isInteger(seconds) && seconds >= 0 && seconds <= 59 ? minutes * 60 + seconds : NaN;
 }
 function drawProgram() {
   if (mix.automation.kind === 'fixed') return;
@@ -436,7 +532,7 @@ function drawProgram() {
   const left = (mix.carrier - current.rate / 2).toFixed(3), right = (mix.carrier + current.rate / 2).toFixed(3);
   $('#signal-detail').textContent = mix.mode === 'off' ? 'Generator off' : mix.mode === 'isochronic' ? mix.carrier + ' Hz tone / ' + current.rate.toFixed(2) + ' pulses/second' : mix.mode === 'binaural' ? 'Left ' + left + ' Hz / Right ' + right + ' Hz' : left + ' + ' + right + ' Hz mixed to both ears';
 }
-document.querySelectorAll('input[name="program"]').forEach((input) => input.addEventListener('change', () => { mix.automation.kind = input.value; changed(); engine.resetPosition(); }));
+document.querySelectorAll('input[name="program"]').forEach((input) => input.addEventListener('change', () => { mix.automation.kind = input.value; $('#stage-error').textContent = ''; changed(); engine.resetPosition(); }));
 for (const key of ['start', 'end', 'seconds', 'curve', 'repeat']) {
   const updateSweep = () => {
   const input = $('#sweep-' + key); if (input.type === 'number' && !input.checkValidity()) { render(); return; }
@@ -453,31 +549,42 @@ for (const key of ['in', 'out']) {
 }
 for (const key of ['width', 'softness', 'depth']) $('#pulse-' + key).addEventListener('input', () => { mix.pulse[key] = Number($('#pulse-' + key).value); changed(); });
 function updateStage(event) {
-  const key = event.target.dataset.stageKey; if (!key) return;
-  if (event.target.type === 'number' && !event.target.checkValidity()) { renderStages(); return; }
-  const index = Number(event.target.closest('.stage-row').dataset.stage);
-  const value = event.target.type === 'number' ? event.target.valueAsNumber : event.target.value;
-  if (key === 'seconds' && mix.automation.stages.reduce((sum, stage, i) => sum + (i === index ? value : stage.seconds), 0) > 7200) { $('#stage-error').textContent = 'A session can be at most 2 hours.'; renderStages(); return; }
+  const field = event.target, duration = field.dataset.stageDuration;
+  const key = duration ? 'seconds' : field.dataset.stageKey; if (!key) return;
+  const row = field.closest('.stage-row'), index = Number(row.dataset.stage);
+  if (!duration && field.type === 'number' && !field.checkValidity()) { if (event.type === 'change') renderStages(); return; }
+  const value = duration ? stageDurationValue(row) : field.type === 'number' ? field.valueAsNumber : field.value;
+  if (key === 'seconds' && (!Number.isFinite(value) || value < 5 || value > 3600)) {
+    if (event.type === 'change') $('#stage-error').textContent = 'Each stage must last between 5 seconds and 60 minutes.';
+    return;
+  }
+  if (key === 'seconds' && mix.automation.stages.reduce((sum, stage, i) => sum + (i === index ? value : stage.seconds), 0) > 7200) { $('#stage-error').textContent = 'A session can be at most 2 hours.'; return; }
+  if (mix.automation.stages[index][key] === value) { $('#stage-error').textContent = ''; if (event.type === 'change' && !duration) renderStages(); return; }
   mix.automation.stages[index][key] = value;
-  $('#stage-error').textContent = ''; changed(true); engine.resetPosition();
-  if (event.type === 'change') renderStages();
+  $('#stage-error').textContent = ''; changed(true); if (mix.automation.kind === 'sequence') engine.resetPosition();
+  if (event.type === 'change' && !duration) renderStages();
 }
 $('#stage-list').addEventListener('change', updateStage);
-$('#stage-list').addEventListener('input', (event) => { if (event.target.type === 'number' && event.target.checkValidity()) updateStage(event); });
+$('#stage-list').addEventListener('input', (event) => { if (event.target.type === 'number') updateStage(event); });
+$('#stage-list').addEventListener('focusout', (event) => {
+  const group = event.target.closest('.stage-duration');
+  if (group && !group.contains(event.relatedTarget)) renderStages();
+});
 $('#stage-list').addEventListener('click', (event) => {
   const button = event.target.closest('[data-stage-action]'); if (!button) return;
   const index = Number(button.closest('.stage-row').dataset.stage), stages = mix.automation.stages;
   const action = button.dataset.stageAction;
   if (action === 'remove') stages.splice(index, 1);
   else { const next = index + (action === 'up' ? -1 : 1); [stages[index], stages[next]] = [stages[next], stages[index]]; }
-  document.activeElement.blur(); changed(); engine.resetPosition();
+  document.activeElement.blur(); $('#stage-error').textContent = ''; changed(); if (mix.automation.kind === 'sequence') engine.resetPosition();
 });
 $('#add-stage').addEventListener('click', () => {
   const stages = mix.automation.stages, end = stages.at(-1).end;
   stages.push({ type: 'hold', start: end, end, seconds: Math.min(60, 7200 - stages.reduce((sum, stage) => sum + stage.seconds, 0)), curve: 'linear' });
-  changed(); engine.resetPosition();
+  $('#stage-error').textContent = '';
+  changed(); if (mix.automation.kind === 'sequence') engine.resetPosition();
 });
-for (const id of ['#band-filter', '#method-filter', '#preset-search', '#favorites-only']) $(id).addEventListener(id === '#preset-search' ? 'input' : 'change', renderLibrary);
+for (const id of ['#preset-search', '#favorites-only']) $(id).addEventListener(id === '#preset-search' ? 'input' : 'change', renderLibrary);
 function persistFavorites() {
   try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); }
   catch { notify('Favorites changed; browser storage unavailable'); }
@@ -491,7 +598,7 @@ function downloadBlob(blob, filename) {
 }
 function jsonDownload(value, filename) { downloadBlob(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }), filename); }
 function exportName() { return 'Hz Mixer - ' + ((suggestedName || 'My mix').replace(/[^a-z0-9 _-]/gi, '').trim() || 'My mix'); }
-let exportTab = 'audio', exportAbort = null;
+let exportTab = 'audio', exportAbort = null, exportFinalizing = false;
 if (typeof window.showSaveFilePicker === 'function') $('#export-summary').before($('#direct-export-template').content.cloneNode(true));
 function renderExport() {
   $('#audio-export-fields').hidden = exportTab !== 'audio';
@@ -503,6 +610,7 @@ function renderExport() {
   $('#export-rate').disabled = Boolean(exportAbort);
   $('#export-format').disabled = Boolean(exportAbort); $('#export-bitrate').disabled = Boolean(exportAbort);
   $('#download-export').disabled = Boolean(exportAbort);
+  $('#cancel-export').disabled = exportFinalizing || Boolean(exportAbort?.signal.aborted);
   if ($('#export-direct')) { $('#direct-export-field').hidden = exportTab !== 'audio'; $('#export-direct').disabled = Boolean(exportAbort); }
   if (exportTab === 'audio' && bytes > 128 * 1048576 && !$('#export-direct')?.checked) $('#export-summary').textContent += ' / Large download: browser memory use may be high.';
   document.querySelectorAll('[data-export-tab]').forEach((button) => { button.setAttribute('aria-pressed', String(button.dataset.exportTab === exportTab)); button.disabled = Boolean(exportAbort); });
@@ -512,7 +620,7 @@ document.querySelectorAll('[data-export-tab]').forEach((button) => button.addEve
 $('#export-seconds').addEventListener('input', renderExport); $('#export-rate').addEventListener('change', renderExport);
 $('#export-format').addEventListener('change', renderExport); $('#export-bitrate').addEventListener('change', renderExport);
 $('#export-direct')?.addEventListener('change', renderExport);
-function cancelExport() { if (exportAbort) { exportAbort.abort(); $('#cancel-export').disabled = true; } else $('#export-dialog').close(); }
+function cancelExport() { if (exportFinalizing) return; if (exportAbort) { exportAbort.abort(); $('#cancel-export').disabled = true; } else $('#export-dialog').close(); }
 $('#cancel-export').addEventListener('click', cancelExport);
 $('#export-dialog').addEventListener('cancel', (event) => { if (exportAbort) { event.preventDefault(); cancelExport(); } });
 $('#download-export').addEventListener('click', async () => {
@@ -532,10 +640,16 @@ $('#download-export').addEventListener('click', async () => {
     const blob = format === 'mp3'
       ? await renderMp3(snapshot, seconds, rate, bitrate, (id) => engine.buffer(id), progress, exportAbort.signal, 20, writable)
       : await renderWav(snapshot, seconds, rate, (id) => engine.buffer(id), progress, exportAbort.signal, 20, writable);
-    if (writable) await writable.close(); else downloadBlob(blob, filename);
+    checkExportCancelled(exportAbort.signal);
+    if (writable) {
+      exportFinalizing = true; renderExport();
+      $('#cancel-export').textContent = 'Finalizing...';
+      $('#export-summary').textContent = 'Finalizing ' + format.toUpperCase() + ' file...';
+      await writable.close();
+    } else downloadBlob(blob, filename);
     notify(format.toUpperCase() + ' export complete');
   } catch (error) { if (writable) { try { await writable.abort(); } catch { /* A completed or closed writer cannot be aborted. */ } } $('#export-error').textContent = error.name === 'AbortError' ? 'Export cancelled. No completed audio file was saved.' : error.message; }
-  finally { exportAbort = null; $('#cancel-export').textContent = 'Close'; $('#cancel-export').disabled = false; renderExport(); }
+  finally { exportAbort = null; exportFinalizing = false; $('#cancel-export').textContent = 'Close'; $('#cancel-export').disabled = false; renderExport(); }
 });
 let importData = null, importRequest = 0;
 function importedLibrary() {
@@ -571,7 +685,7 @@ $('#import-file').addEventListener('change', async () => {
   $('#import-capacity').textContent = '';
   try {
     const file = $('#import-file').files[0]; if (!file) return;
-    if (file.size > 1000000) throw new Error('Choose a JSON file smaller than 1 MB.');
+    if (file.size > MAX_JSON_BYTES) throw new Error('Choose a JSON file smaller than 4 MB.');
     const text = await file.text();
     if (request !== importRequest) return;
     importData = parseBackup(text);
@@ -652,6 +766,14 @@ function drawScope(timestamp) {
   }
   canvas.dataset.view = view;
 }
+mixerUI = initializeMixerUI({ getMix: () => mix, getTime: () => engine.elapsed(), onChange: (resetClock) => { changed(); if (resetClock) engine.resetPosition(); }, onAudition: () => engine.update(mixerUI.playbackMix(mix)) });
+uiPolish = initializeUIPolish({ onLevelChange: (range, value) => {
+  if (range.id === 'master-level') mix.master = value;
+  else if (range.id === 'tone-level') mix.toneLevel = value;
+  else if (range.dataset.volume) layerConfig(range.dataset.volume).level = value;
+  else if (range.dataset.voiceId) mix.studio.voices.find((tone) => tone.id === range.dataset.voiceId).level = value;
+  mixerUI.resetComparison(); changed();
+} });
 applyTheme();
 engine.update(mix);
 renderLibrary();

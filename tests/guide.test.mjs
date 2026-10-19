@@ -47,7 +47,7 @@ test('listening safety and information are present without the removed footer cl
   for (const path of ['index.html', 'README.md', 'docs/mixer-guide.md', 'docs/release-readme.txt', 'docs/releases/v0.1.0.md']) {
     const text = await read(path);
     const normalized = text.replace(/\s+/g, ' ');
-    assert(/sitting or lying down/.test(text), path);
+    assert(/sitting or lying down|Sit or lie down/.test(text), path);
     assert(/driving, operating machinery/.test(normalized), path);
     assert(normalized.includes('reduced alertness or altered awareness could cause injury'), path);
     assert(!/reading or studying|less alert|activity takes concentration/i.test(normalized), path);
@@ -56,7 +56,8 @@ test('listening safety and information are present without the removed footer cl
     assert(!text.includes('not a guaranteed mental state'), path);
   }
   const html = await read('index.html');
-  assert(html.indexOf('aria-label="Listening safety"') < html.indexOf('id="play-button"'));
+  assert(html.indexOf('aria-label="Listening safety"') > html.indexOf('id="info-dialog"'));
+  assert(!html.includes('<strong>Listen safely.</strong>'), 'mixer banner is removed');
   assert(html.includes('id="info-dialog" class="info-dialog" aria-labelledby="info-heading"'));
   const readme = await read('README.md');
   assert(!readme.includes('## Use Online'));

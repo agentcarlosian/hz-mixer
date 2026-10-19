@@ -1,10 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { extname } from 'node:path';
+import { RECORDINGS, recordingPath } from '../src/mix-state.mjs';
 import { zipSync, unzipSync } from 'fflate';
 import { createReleaseArchive, validateReleaseArchive, releaseFiles } from '../scripts/release-lib.mjs';
 
 const entries = () => Object.fromEntries(releaseFiles.map((name) => [name, Buffer.from('Synthetic release: ' + name + '\n')]));
+test('every bundled recording format is explicitly protected from Git text conversion', async () => {
+  const attributes = (await readFile(new URL('../.gitattributes', import.meta.url), 'utf8')).split(/\r?\n/);
+  for (const extension of new Set(RECORDINGS.map(({ id }) => extname(recordingPath(id))))) assert(attributes.includes('*' + extension + ' binary'), extension);
+});
 test('release archives are allowlisted, checksummed and reproducible', () => {
   const first = createReleaseArchive(entries(), '0.1.0', 'MIT');
   const second = createReleaseArchive(entries(), '0.1.0', 'MIT');

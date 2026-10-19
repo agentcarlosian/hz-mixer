@@ -2,11 +2,13 @@
 
 Hz Mixer's original source uses the root MIT licence. These bundled assets keep their own terms; the root licence does not replace them.
 
-## Field Recordings
+## Audio Recordings
 
-The four MP3 recordings are by Joseph Sardin / BigSoundBank and were identified as CC0 1.0 at the recorded source pages. Attribution is optional under CC0; credit and provenance are retained here and inside the standalone app.
+The four original environmental MP3 recordings by Joseph Sardin / BigSoundBank, Campfire by Nox_Sound, and Singing Bowl I / Singing Bowl II by ganapataye were identified as CC0 1.0 at their recorded source pages. The Freesound additions are from https://freesound.org/people/Nox_Sound/sounds/558967/, https://freesound.org/people/ganapataye/sounds/837372/ and https://freesound.org/people/ganapataye/sounds/837376/. Attribution is optional under CC0; credit and provenance are retained here and inside the standalone app.
 
-The [audio source manifest](assets/audio/SOURCES.md) records the exact source URLs, download date, licence and SHA-256 of each original file. Original MP3 bytes are unchanged. Playback/export use derived crossfaded loop buffers.
+Window rain is derived from Rain on Window Loop by alxl, https://opengameart.org/content/rain-on-window-loop, using the creator's explicitly offered CC0 option. Its supplied WAV was converted to a stereo MP3. The other licence options on that page are alternatives, not additional requirements.
+
+The [audio source manifest](assets/audio/SOURCES.md) records source URLs, dates, licence, original/derivative SHA-256 and conversion details. The four BigSoundBank MP3 files are unchanged; Campfire is a derived MP3, and the AIFF bells are converted losslessly to PCM WAV. Environmental playback/export use crossfaded loop buffers; interval bells play as one-shots.
 
 - Creator/source: https://bigsoundbank.com/
 - Recorded licence page: https://bigsoundbank.com/licenses.html
@@ -16,7 +18,7 @@ The [audio source manifest](assets/audio/SOURCES.md) records the exact source UR
 
 The utility/control SVG icons are from the official Lucide repository. The original ISC and inherited Feather MIT notices are preserved verbatim in [assets/icons/LICENSE](assets/icons/LICENSE), included in Credits and at the same path in release archives.
 
-The mixer-and-waves brand and the four literal environmental illustrations are original Hz Mixer artwork under the root MIT licence, not Lucide assets. Their source files and provenance are recorded in the asset manifest below.
+The mixer-and-waves brand and the five literal environmental illustrations are original Hz Mixer artwork under the root MIT licence, not Lucide assets. Their source files and provenance are recorded in the asset manifest below.
 
 - Source: https://github.com/lucide-icons/lucide
 - Asset provenance: [assets/icons/SOURCES.md](assets/icons/SOURCES.md)

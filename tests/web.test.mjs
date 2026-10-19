@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { posix } from 'node:path';
 import { relativeLinkErrors } from '../scripts/links.mjs';
 import { root, modulePaths, iconNames, vendorFiles, metadata } from '../scripts/build-lib.mjs';
-import { SOUNDS } from '../src/mix-state.mjs';
+import { RECORDINGS, recordingPath } from '../src/mix-state.mjs';
 
 async function tree(directory, prefix = '') {
   const entries = {};
@@ -18,10 +18,11 @@ async function tree(directory, prefix = '') {
 }
 test('the web output has an exact deploy allowlist, version and lazy local assets', async () => {
   const entries = await tree(new URL('_site/', root));
-  const expected = ['index.html', 'guide.html', '.nojekyll', 'styles.css', ...modulePaths, 'src/resources.js', ...iconNames.map((name) => 'assets/icons/' + name + '.svg'), ...SOUNDS.map(({ id }) => 'assets/audio/' + id + '.mp3'), 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'assets/audio/SOURCES.md', 'assets/icons/SOURCES.md', 'assets/icons/LICENSE', ...vendorFiles];
+  const expected = ['index.html', 'guide.html', '.nojekyll', 'styles.css', ...modulePaths, 'src/resources.js', ...iconNames.map((name) => 'assets/icons/' + name + '.svg'), ...RECORDINGS.map(({ id }) => recordingPath(id)), 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'assets/audio/SOURCES.md', 'assets/icons/SOURCES.md', 'assets/icons/LICENSE', ...vendorFiles];
   assert.deepEqual(Object.keys(entries).sort(), expected.sort());
   const html = entries['index.html'].toString();
-  assert(Buffer.byteLength(html) < 150000);
+  // The complete guide and licence notices are inline; audio and the encoder remain lazy.
+  assert(Buffer.byteLength(html) < 160000);
   assert(html.includes('content="' + metadata.version + '"'));
   assert(!html.includes('audio/base64')); assert(!html.includes('data:application/gzip'));
   assert(!/<script[^>]*src="[^\"]*lamejs/.test(html));

@@ -14,9 +14,11 @@ export async function guideRegressions(browser, url, output) {
   try {
     await page.goto(url);
     assert.equal(await page.locator('#status').textContent(), 'Ready');
-    const notice = page.locator('.app-shell .listening-notice');
-    assert((await notice.textContent()).includes('driving, operating machinery'));
-    assert((await notice.boundingBox()).y < (await page.locator('#play-button').boundingBox()).y);
+    assert.equal(await page.locator('.app-shell .listening-notice').count(), 0, 'no repeated warning banner in the mixer');
+    assert((await page.locator('#info-dialog .listening-notice').textContent()).includes('driving, operating machinery'));
+    assert.equal(await page.locator('#band-filter, #method-filter').count(), 0);
+    for (const [selector, value] of [['#beat-value', '5.88'], ['#carrier-value', '8']]) { await page.locator(selector).fill(value); await page.locator(selector).press('Tab'); }
+    assert.equal(await page.locator('#preset-summary').textContent(), 'Binaural / 5.88 Hz / 8 Hz carrier');
     for (const theme of ['light', 'green', 'dark', 'cyberpunk', 'matrix']) {
       await page.locator('#theme-mode').selectOption(theme);
       for (const width of [320, 390, 768, 1365]) {
@@ -26,10 +28,13 @@ export async function guideRegressions(browser, url, output) {
           return { overflow: document.documentElement.scrollWidth > innerWidth, overlap: brand.right > actions.left + 1 };
         });
         assert.deepEqual(layout, { overflow: false, overlap: false }, theme + ' at ' + width);
+        const readout = await page.locator('#preset-summary').evaluate((element) => ({ size: parseFloat(getComputedStyle(element).fontSize), first: element.parentElement.firstElementChild === element, fits: element.scrollWidth <= element.clientWidth + 1 }));
+        assert(readout.size >= 16 && readout.first && readout.fits, 'larger header readout fits at ' + width);
         await page.locator('#info-open').click();
         assert(await page.getByRole('dialog', { name: 'About Hz Mixer', exact: true }).isVisible());
         assert(await page.locator('#info-dialog').evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth));
         assert((await page.locator('#info-dialog').textContent()).includes('Stereo headphones are required'));
+        assert(await page.locator('#info-dialog .listening-notice').isVisible(), 'safety notice remains in About');
         if (['light', 'dark', 'matrix'].includes(theme) && [390, 1365].includes(width)) await page.screenshot({ path: fileURLToPath(new URL('info-' + theme + '-' + width + '.png', output)) });
         await page.keyboard.press('Escape');
         assert.equal(await page.evaluate(() => document.activeElement.id), 'info-open');
@@ -47,7 +52,8 @@ export async function guideRegressions(browser, url, output) {
     assert(guide.url().startsWith(url + 'guide.html'));
     assert.equal(await guide.title(), 'Hz Mixer Guide');
     assert.equal(await guide.locator('html').getAttribute('data-theme'), 'dark');
-    assert.equal(await guide.locator('.guide-toc a').count(), 16);
+    assert.equal(await guide.locator('.guide-toc a').count(), 18);
+    assert.equal(await guide.locator('.guide-toc a[href="#guide-interval-bells"]').textContent(), 'Interval Bells');
     assert(await guide.locator('.guide-toc a').evaluateAll((links) => links.every((link) => document.getElementById(link.hash.slice(1)))));
     for (const width of [320, 390, 768, 1365]) {
       await guide.setViewportSize({ width, height: 1000 });

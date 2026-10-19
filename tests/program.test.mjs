@@ -77,9 +77,9 @@ test('scheduled gain matches the envelope for zero/nonzero fades and partial blo
 test('legacy snapshots get new defaults; malformed stages and fields are bounded', () => {
   const mix = normalizeMix({ mode: 'binaural', beat: 7.83, carrier: 20 });
   assert.equal(mix.automation.kind, 'fixed'); assert.equal(mix.fades.in, 3); assert.equal(mix.noise.pink.enabled, false);
-  const many = normalizeMix({ automation: { kind: 'sequence', stages: Array.from({ length: 30 }, () => ({ start: 80, end: -4, seconds: 5000, type: 'sweep' })) } });
+  const many = normalizeMix({ automation: { kind: 'sequence', stages: Array.from({ length: 30 }, () => ({ start: 800, end: -4, seconds: 5000, type: 'sweep' })) } });
   assert.equal(sessionSeconds(many), 7200); assert.equal(many.automation.stages.length, 2);
-  assert(many.automation.stages.every((stage) => stage.start === 40 && stage.end === .5));
+  assert(many.automation.stages.every((stage) => stage.start === 120 && stage.end === .1));
 });
 
 test('two-tone carrier validation includes all planned rates', () => {
@@ -87,4 +87,30 @@ test('two-tone carrier validation includes all planned rates', () => {
   assert(signalError(mix)); mix.mode = 'isochronic'; assert.equal(signalError(mix), '');
   mix.mode = 'binaural'; mix.beat = 7.83; assert.equal(signalError(mix), '');
   mix.automation.kind = 'sequence'; mix.automation.stages[1].end = 40; assert(signalError(mix));
+});
+
+test('expanded two-tone bounds and actual sample-rate budgets include every active stage', () => {
+  const mix = defaultMix(); mix.beat = 120; mix.carrier = 60;
+  for (const mode of ['binaural', 'monaural']) {
+    mix.mode = mode; assert(signalError(mix));
+    mix.carrier = 61; assert.equal(signalError(mix, 44100), ''); mix.carrier = 60;
+  }
+  mix.carrier = 1; mix.beat = 1.99; assert.equal(signalError(mix, 44100), '');
+  mix.beat = 2; assert(signalError(mix));
+  mix.mode = 'isochronic'; mix.beat = 120; mix.carrier = 5000;
+  assert.equal(signalError(mix, 44100), ''); assert.equal(signalError(mix, 48000), '');
+  assert.match(signalError(mix, 32000), /sample rate/);
+  mix.beat = .1; mix.automation.kind = 'sweep'; mix.automation.sweep.end = 120;
+  assert.match(signalError(mix, 32000), /sample rate/);
+  mix.automation.kind = 'sequence'; mix.automation.stages[1].end = 120;
+  assert.match(signalError(mix, 32000), /sample rate/);
+  mix.mode = 'off'; assert.equal(signalError(mix, 8000), '');
+});
+
+test('slow-to-fast sweeps retain phase integration and exact hundredth-hertz endpoints', () => {
+  const mix = defaultMix(); mix.automation.kind = 'sweep';
+  mix.automation.sweep = { start: .1, end: 120, seconds: 20, curve: 'smooth', repeat: 'once' };
+  assert.equal(programAt(mix, 0).rate, .1); assert.equal(programAt(mix, 20).rate, 120);
+  assert(Math.abs(beatCycles(mix, 20) - 1201) < 1e-8);
+  assert(Math.abs(beatCycles(mix, 30) - 2401) < 1e-8);
 });

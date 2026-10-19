@@ -1,9 +1,11 @@
+import { recordingPath } from './mix-state.mjs';
+
 export function iconUrl(name) {
   return './assets/icons/' + name + '.svg';
 }
 
 export async function audioBytes(name) {
-  const response = await fetch('./assets/audio/' + name + '.mp3');
+  const response = await fetch('./' + recordingPath(name));
   if (!response.ok) throw new Error('Recording unavailable: ' + name);
   return response.arrayBuffer();
 }

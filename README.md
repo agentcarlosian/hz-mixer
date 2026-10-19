@@ -6,31 +6,33 @@ A browser audio mixer for binaural beats, monaural beats, isochronic pulses, env
 
 [Mixer guide](docs/mixer-guide.md) | [Offline build](#offline-build) | [Contributing](CONTRIBUTING.md)
 
-## Listening Safety
-
-**Use Hz Mixer while sitting or lying down in a safe place. Do not use it while driving, operating machinery, or where reduced alertness or altered awareness could cause injury.**
-
-Start at a low, comfortable volume. Use stereo headphones for binaural mode. The digital meter does not measure sound pressure at your ears.
-
 ## Features
 
-- Binaural, monaural, isochronic and nature-only modes.
-- Beat rate 0.50-40.00 Hz in 0.01 Hz steps; carrier pitch 20-2000 Hz.
-- 37 presets across Delta, Theta, Alpha, Beta, Gamma and nature-only, with search, band/method filters and favorites.
-- Fixed rates, linear/smooth sweeps, once/hold or ping-pong, and up to 16 hold/sweep session stages.
-- Four field recordings plus white, pink and brown noise; independent level, mute, solo and balance.
+- Binaural, monaural, isochronic and Environment only modes.
+- Beat rate 0.10-120.00 Hz in 0.01 Hz steps; carrier pitch 1-5000 Hz.
+- 61 presets grouped by Delta, Theta, Alpha, Beta, Gamma and Environment only, with search and favorites. Includes layered tones, AM/noise textures, dual-generator sweeps, staged sessions and singing-bowl intervals.
+- Dice-button random mixes, with Simple/Advanced-aware settings, moderate channel levels and preserved master, fades and program timing.
+- Permanent one-step Restore beside Reset/Dice, without changing saved mixes or favorites.
+- Editable percentage boxes alongside level sliders, layered-tone/program readouts, metadata-aware search, keyboard/hover tooltips and reduced-motion-aware reset/dice feedback.
+- Fixed rates, linear/smooth sweeps, once/hold or ping-pong, and an inline editor for up to 16 hold/sweep session stages with minute/second durations.
+- Six environmental recordings, including Campfire and Window rain, plus white, pink and brown noise; independent level, mute, solo and balance.
+- Two Tibetan bowl bells with independent repeat intervals, level, mute, solo and balance; included in saved mixes and audio exports.
+- Simple mode keeps the classic Generator and full Environment mixer beneath the Monitor. Advanced reveals extra controls in the same layout, with compact source-effects popups.
+- Advanced offers three tone layers with independent/follow/sweep programs, carrier bookmarks, sine/triangle/square/sawtooth/harmonic-blend carriers and FM/PM.
+- Opt-in per-source AM, independent or linked channel envelopes, auto-pan/balance, low/high/band-pass and notch filters, envelope preview and monitor AM/dry A/B.
+- Per-stage changes with From/To values for layer crossfades, carrier pitch, balance, AM depth and filter cutoff; shared live/WAV/MP3 processing.
 - Fade-in/out, crossfaded recording loops, and isochronic width, softness and depth.
 - System, black/purple Dark, Light, Green, Blue and Matrix themes; waveform/spectrum monitor, session progress and digital RMS meter. Matrix includes pausable kanji/kana code rain with mixer vocabulary and respects reduced motion.
 - Up to 30 named mixes and JSON mix/library backup with previewed import.
 - Stereo WAV (16-bit PCM) and MP3 (128/192/256/320 kbps), at 44.1 or 48 kHz, with progress/cancellation and optional direct-to-file saving.
 
-![Hz Mixer playing a binaural mix with environmental audio in dark mode](docs/images/mixer-dark.png)
+![Hz Mixer playing a binaural and isochronic sweep with environmental audio in Dark theme](docs/images/mixer-dark.png)
 
 The header's info button opens a quick reference and the full guide without leaving the current mixer. The [complete mixer guide](docs/mixer-guide.md) covers every control, frequency programs, saved mixes, imports, exports, themes, privacy and troubleshooting. It is embedded in both builds and also available as the website's `guide.html`. No flashing-light features are included.
 
 ## Local Data and Privacy
 
-Mixing, rendering, encoding and JSON import run in your browser. Hz Mixer does not upload settings, imported JSON or exported audio. Current settings, saved mixes, favorites, theme and Matrix rain pause state use local browser storage. Clearing site data removes them. Use a library backup to transfer mixes between browsers, the old Beat Mixer file, the website and the portable app; their storage is separate. Theme and motion preferences are not part of mix backups.
+Mixing, rendering, encoding and JSON import run in your browser. Hz Mixer does not upload settings, imported JSON or exported audio. Current settings, saved mixes, favorites, theme, Simple/Advanced preference and Matrix rain pause state use local browser storage. Clearing site data removes them. Use a library backup to transfer mixes between browsers, the old Beat Mixer file, the website and the portable app; their storage is separate. Theme, interface and motion preferences are not part of mix backups.
 
 The website requests static files from its host. GitHub Pages records visitor IP addresses for security. There is no service worker or promise that the website works offline after a visit. See the [privacy details](docs/privacy.md).
 
@@ -46,6 +48,12 @@ npm run build:standalone
 ```
 
 Node.js is required only for development and packaging, not for listening. Moving/renaming a portable file may create separate browser storage; back up your library first.
+
+## Listening Safety
+
+**Use Hz Mixer while sitting or lying down in a safe place. Do not use it while driving, operating machinery, or where reduced alertness or altered awareness could cause injury.**
+
+Start at a low, comfortable volume. Use stereo headphones for binaural mode. The digital meter does not measure sound pressure at your ears.
 
 ## Development
 

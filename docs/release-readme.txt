@@ -19,12 +19,23 @@ then import it here. Theme settings are separate from audio backups.
 
 Fixed, Sweep and Session select a frequency program. Manual beat edits return
 to Fixed. Editing stages/sweeps resets the clock; Pause preserves progress.
+Beat rate spans 0.10-120.00 Hz and carrier pitch spans 1-5000 Hz. Existing
+presets and defaults are unchanged. Invalid two-tone combinations show an
+error. A generated infrasonic carrier may not be reproduced by your device.
+
+Mix/library imports accept versions 2 and 3. Exports with frequencies beyond
+the older 0.50-40 Hz beat or 20-2000 Hz carrier limits use version 3, which
+older builds reject instead of silently changing the settings.
 
 Export offers WAV, MP3, Mix JSON and a Library backup. Audio uses a snapshot
 from the beginning, not past live edits. MP3 is lossy with codec padding;
 WAV is the uncompressed reference. Long downloads can use substantial memory.
 Direct-to-file saving is offered only in browsers that support it. Cancel
 waits for a rendering/decoding block; MP3 encoding yields more frequently.
+Once a direct save enters Finalizing, Cancel is disabled while the browser
+commits the file. Failed commits show an error and allow another attempt.
+Short matching-time overlaps smooth generator render-block joins without
+changing the export's sample count or stereo channels.
 
 The meter measures digital audio, not volume at your ears. Stop if
 uncomfortable. Mixer levels do not establish a safe headphone volume.

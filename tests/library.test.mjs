@@ -33,3 +33,25 @@ test('library capacity failure is atomic, including the 31st current mix', () =>
   assert.throws(() => mergeImports([], [...entries, extra], true, () => 'new'), /30-mix/);
   assert.equal(entries.length, 30);
 });
+
+test('expanded JSON preserves all frequencies and version-gates older clamping builds', () => {
+  const ordinary = defaultMix();
+  assert.equal(makeMixFile(ordinary).version, 2);
+  assert.equal(makeBackup([], ordinary, '', []).version, 2);
+  for (const [beat, carrier] of [[.1, 1], [120, 5000], [7.83, 5000]]) {
+    const mix = defaultMix(); mix.beat = beat; mix.carrier = carrier;
+    const file = makeMixFile(mix, 'Wide'); assert.equal(file.version, 3);
+    assert.deepEqual(parseBackup(JSON.stringify(file)).entries[0].mix, mix);
+    const entry = { id: 'wide', name: 'Wide', mix };
+    const backup = makeBackup([entry], ordinary, 'Ordinary', []); assert.equal(backup.version, 3);
+    assert.deepEqual(parseBackup(JSON.stringify(backup)).entries, [entry]);
+    assert.equal(makeBackup([], mix, 'Wide', []).version, 3);
+  }
+  for (const field of ['sweep', 'stage']) {
+    const mix = defaultMix();
+    if (field === 'sweep') mix.automation.sweep.end = 120;
+    else mix.automation.stages[1].start = .1;
+    assert.equal(makeMixFile(mix).version, 3, 'Inactive extended program values must not be lost in older builds');
+    assert.deepEqual(parseBackup(JSON.stringify(makeMixFile(mix))).entries[0].mix, mix);
+  }
+});
