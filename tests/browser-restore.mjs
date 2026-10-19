@@ -4,7 +4,25 @@ import { fileURLToPath } from 'node:url';
 
 export async function restoreRegressions(browser, url, output) {
   const page = await browser.newPage({ viewport: { width: 1365, height: 1000 } });
-  const errors = []; page.on('pageerror', (error) => errors.push(error.message));
+  const errors = [], warnings = []; page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (['warning', 'error'].includes(message.type())) warnings.push({ type: message.type(), text: message.text() }); });
+  await page.addInitScript(() => {
+    window.__restoreAudio = { contexts: [], calls: [] };
+    const create = AudioContext.prototype.createAnalyser;
+    AudioContext.prototype.createAnalyser = function () {
+      if (!window.__restoreAudio.contexts.includes(this)) window.__restoreAudio.contexts.push(this);
+      return create.call(this);
+    };
+    for (const method of ['resume', 'suspend']) {
+      const original = AudioContext.prototype[method];
+      AudioContext.prototype[method] = function () {
+        const call = { method, state: this.state, time: this.currentTime, result: 'pending' }; window.__restoreAudio.calls.push(call);
+        const promise = original.call(this);
+        promise.then(() => { call.result = 'resolved'; call.finalState = this.state; }, (error) => { call.result = 'rejected'; call.error = error.message; });
+        return promise;
+      };
+    }
+  });
   const current = () => page.evaluate(() => JSON.parse(localStorage.getItem('beat-mixer.current.v1')));
   const storedLibrary = () => page.evaluate(() => localStorage.getItem('beat-mixer.library.v1'));
   const save = async (name) => { await page.locator('#save-mix').click(); await page.locator('#mix-name').fill(name); await page.locator('#save-form button[type="submit"]').click(); };
@@ -98,5 +116,21 @@ export async function restoreRegressions(browser, url, output) {
     assert(await portable.locator('#restore-mix').isDisabled()); assert.deepEqual(blocked, []); assert.deepEqual(errors, []);
     await writeFile(new URL('restore-evidence.json', output), JSON.stringify({ oneStep: true, selection: restored.selection, savedSelection: saved.selection, playing: true, paused: true, blocked, errors }, null, 2));
     console.log('Restore: one-step Reset/Dice snapshots, keyboard, selection/library integrity, edit/load/reload clearing, playing/paused state, responsive themes and portable offline passed');
+  } catch (error) {
+    const state = await page.evaluate(() => ({
+      status: document.getElementById('status')?.textContent,
+      signalError: document.getElementById('signal-error')?.textContent,
+      storageStatus: document.getElementById('storage-status')?.textContent,
+      playDisabled: document.getElementById('play-button')?.disabled,
+      focus: document.activeElement?.id,
+      visibility: document.visibilityState,
+      userActivation: navigator.userActivation && { active: navigator.userActivation.isActive, seen: navigator.userActivation.hasBeenActive },
+      audio: { contexts: (window.__restoreAudio?.contexts || []).map((context) => ({ state: context.state, sampleRate: context.sampleRate, currentTime: context.currentTime })), calls: window.__restoreAudio?.calls || [] },
+    })).catch((failure) => ({ captureError: failure.message }));
+    const diagnostics = { platform: process.platform, browser: browser.version(), state, errors, warnings };
+    console.error('Restore failure diagnostics:', JSON.stringify(diagnostics));
+    await writeFile(new URL('restore-failure.json', output), JSON.stringify(diagnostics, null, 2)).catch(() => {});
+    await page.screenshot({ path: fileURLToPath(new URL('restore-failure.png', output)) }).catch(() => {});
+    throw error;
   } finally { await portable?.close(); await page.close(); }
 }
