@@ -4,7 +4,7 @@
 
 A browser audio mixer for binaural beats, monaural beats, isochronic pulses, environmental recordings and generated noise.
 
-[Open Hz Mixer](https://agentcarlosian.github.io/hz-mixer/) | [Mixer guide](https://agentcarlosian.github.io/hz-mixer/guide.html) | [Offline build](#offline-build) | [Contributing](CONTRIBUTING.md)
+[Open Hz Mixer](https://agentcarlosian.github.io/hz-mixer/) | [Mixer guide](https://agentcarlosian.github.io/hz-mixer/guide.html) | [Offline downloads](https://github.com/agentcarlosian/hz-mixer/releases/latest) | [Contributing](CONTRIBUTING.md)
 
 ## Features
 
@@ -44,7 +44,7 @@ The website requests static files from its host. GitHub Pages records visitor IP
 
 ## Offline Build
 
-The portable build is `Hz Mixer.html`. Open it in a modern desktop browser without a local server or companion files. It contains all recordings, icons, code, the full guide, encoder source and licence texts. It makes no automatic runtime network requests. Audio starts only after Play.
+Download [Hz-Mixer.html](https://github.com/agentcarlosian/hz-mixer/releases/download/v0.1.0/Hz-Mixer.html) for the self-contained mixer, or the [ZIP](https://github.com/agentcarlosian/hz-mixer/releases/download/v0.1.0/hz-mixer-0.1.0.zip) for the same file named `Hz Mixer.html` alongside component notices and source. Open the HTML in a modern desktop browser without a local server or companion files. It contains all recordings, icons, code, the full guide, encoder source and licence texts. It makes no automatic runtime network requests. Audio starts only after Play.
 
 From a source checkout, Node.js 24 builds the portable file:
 
