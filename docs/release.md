@@ -2,7 +2,7 @@
 
 ## Boundaries
 
-The primary public entry point is the static website. The expected project URL is `https://agentcarlosian.github.io/hz-mixer/`; verify it after deployment before adding an active website link to the README. `_site/` is the only Pages upload directory; never upload the repository root, `dist/` or the portable HTML as the homepage.
+The primary public entry point is [Hz Mixer](https://agentcarlosian.github.io/hz-mixer/). Verify the live HTTPS site after every deployment. `_site/` is the only Pages upload directory; never upload the repository root, `dist/` or the portable HTML as the homepage.
 
 The optional portable artifact is `Hz Mixer.html`. `dist/` contains the verified ZIP, HTML, manifest, checksum list and release notes. Dependencies, generated outputs and local QA evidence are ignored. npm publication is disabled. Local preparation never creates a remote, pushes, tags or deploys.
 

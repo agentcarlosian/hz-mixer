@@ -4,7 +4,7 @@
 
 A browser audio mixer for binaural beats, monaural beats, isochronic pulses, environmental recordings and generated noise.
 
-[Mixer guide](docs/mixer-guide.md) | [Offline build](#offline-build) | [Contributing](CONTRIBUTING.md)
+[Open Hz Mixer](https://agentcarlosian.github.io/hz-mixer/) | [Mixer guide](https://agentcarlosian.github.io/hz-mixer/guide.html) | [Offline build](#offline-build) | [Contributing](CONTRIBUTING.md)
 
 ## Features
 
