@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.0] - Release Candidate
+## [0.1.0] - 2026-10-19
 
 - Permanent Restore previous mix command beside Reset/Dice. It retains one in-memory settings snapshot, restores matching preset/saved selection metadata, preserves playback state and leaves the saved library/favorites untouched.
 - Editable percentage boxes accompany all channel/master/tone level sliders. Richer tone/program summaries, metadata-aware preset search, theme-aware hover/keyboard tooltips, reduced-motion-aware reset/dice feedback and an original logs-and-flames campfire icon complete the UI polish.

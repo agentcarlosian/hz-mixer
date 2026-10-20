@@ -4,7 +4,7 @@
 
 The primary public entry point is [Hz Mixer](https://agentcarlosian.github.io/hz-mixer/). Verify the live HTTPS site after every deployment. `_site/` is the only Pages upload directory; never upload the repository root, `dist/` or the portable HTML as the homepage.
 
-The optional portable artifact is `Hz Mixer.html`. `dist/` contains the verified ZIP, HTML, manifest, checksum list and release notes. Dependencies, generated outputs and local QA evidence are ignored. npm publication is disabled. Local preparation never creates a remote, pushes, tags or deploys.
+The optional portable download is `Hz-Mixer.html`; the local build and the copy inside the ZIP remain `Hz Mixer.html`. The download name avoids GitHub's release-asset filename normalization and matches the external checksum list. `dist/` contains the verified ZIP, HTML, manifest, checksum list and release notes. Dependencies, generated outputs and local QA evidence are ignored. npm publication is disabled. Local preparation never creates a remote, pushes, tags or deploys.
 
 PR/push CI is read-only and stores candidate artifacts. The separate Pages workflow has only `workflow_dispatch`, requires its publish checkbox and `main`, and grants Pages/OIDC write permission only to the deploy job. Configure the `github-pages` environment's allowed branch as `main` and required reviewers where your plan supports them **before enabling deployment**. This repository cannot configure those hosted protections locally.
 
@@ -23,7 +23,7 @@ npm run release:verify
 The built-site regression suite serves the actual `_site/` at `/hz-mixer/`. Check version metadata, relative resource URLs, lazy loading, Info/Guide/Credits/Privacy, the listening warning and exports. ZIP verification checks the exact allowlist, source bytes, hashes, documentation links and deterministic metadata. Source text is LF-normalized; vendored encoder/source bytes are preserved. `dist/` must contain exactly:
 
 - `hz-mixer-<version>.zip`
-- `Hz Mixer.html`
+- `Hz-Mixer.html`
 - `release-manifest.json`
 - `SHA256SUMS.txt`
 - `RELEASE_NOTES.md`

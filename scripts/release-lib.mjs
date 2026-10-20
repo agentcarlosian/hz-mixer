@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { vendorFiles } from './build-lib.mjs';
 
 export const releaseFiles = ['Hz Mixer.html', 'README.txt', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'assets/audio/SOURCES.md', 'assets/icons/SOURCES.md', 'assets/icons/LICENSE', ...vendorFiles];
+export const portableDownloadName = 'Hz-Mixer.html';
 export async function releaseEntries(root) {
   const entries = {};
   for (const name of releaseFiles) {

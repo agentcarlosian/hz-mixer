@@ -13,19 +13,20 @@ are embedded. The HTML can be used alone. Credits includes an exact encoder
 source download and instructions for replacing its separate script block.
 The header's info button opens a quick reference and the embedded full guide.
 
-Saved settings are browser/origin/file-location specific. Before moving from
-Beat Mixer, another browser or the website, export a Library backup there,
-then import it here. Theme settings are separate from audio backups.
+Saved settings are browser/origin/file-location specific. To move between
+the website, portable file or another browser, export a Library backup at
+the old location, then import it here. Themes are separate from audio backups.
 
-Fixed, Sweep and Session select a frequency program. Manual beat edits return
-to Fixed. Editing stages/sweeps resets the clock; Pause preserves progress.
-Beat rate spans 0.10-120.00 Hz and carrier pitch spans 1-5000 Hz. Existing
-presets and defaults are unchanged. Invalid two-tone combinations show an
-error. A generated infrasonic carrier may not be reproduced by your device.
+Fixed, Sweep and Session select a constant rate, moving rate or staged
+program. Editing stages/sweeps resets the clock; Pause preserves progress.
+Beat rate spans 0.10-120.00 Hz and carrier pitch spans 1-5000 Hz. Invalid
+two-tone combinations show an error. A generated infrasonic carrier may
+not be reproduced by your device. Advanced mode reveals additional tone
+layers, modulation, waveforms, filters and per-stage parameter changes.
 
-Mix/library imports accept versions 2 and 3. Exports with frequencies beyond
-the older 0.50-40 Hz beat or 20-2000 Hz carrier limits use version 3, which
-older builds reject instead of silently changing the settings.
+Mix/library imports accept versions 2 through 6. Exports select the format
+needed to preserve the mix, including environmental layers, bells, extended
+frequencies and advanced settings. Older builds may reject newer formats.
 
 Export offers WAV, MP3, Mix JSON and a Library backup. Audio uses a snapshot
 from the beginning, not past live edits. MP3 is lossy with codec padding;
@@ -39,7 +40,6 @@ changing the export's sample count or stereo channels.
 
 The meter measures digital audio, not volume at your ears. Stop if
 uncomfortable. Mixer levels do not establish a safe headphone volume.
-No pulsed-light visuals are included.
 
 Known acceptance gaps: automated browser checks use HTTP, not direct file
 launch. Native Save As and perceived loop quality need manual acceptance.

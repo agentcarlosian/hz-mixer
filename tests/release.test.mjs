@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { RECORDINGS, recordingPath } from '../src/mix-state.mjs';
 import { zipSync, unzipSync } from 'fflate';
-import { createReleaseArchive, validateReleaseArchive, releaseFiles } from '../scripts/release-lib.mjs';
+import { createReleaseArchive, validateReleaseArchive, releaseFiles, portableDownloadName } from '../scripts/release-lib.mjs';
 
 const entries = () => Object.fromEntries(releaseFiles.map((name) => [name, Buffer.from('Synthetic release: ' + name + '\n')]));
 test('every bundled recording format is explicitly protected from Git text conversion', async () => {
@@ -16,6 +16,15 @@ test('release archives are allowlisted, checksummed and reproducible', () => {
   const second = createReleaseArchive(entries(), '0.1.0', 'MIT');
   assert.deepEqual(first.zip, second.zip);
   assert.equal(validateReleaseArchive(first.zip, '0.1.0', 'MIT').manifest.product, 'Hz Mixer');
+});
+
+test('the standalone release download has a URL-safe name without renaming the ZIP entry', () => {
+  assert.equal(portableDownloadName, 'Hz-Mixer.html');
+  assert.match(portableDownloadName, /^[A-Za-z0-9][A-Za-z0-9._-]*$/);
+  const archive = createReleaseArchive(entries(), '0.1.0', 'MIT');
+  const { contents } = validateReleaseArchive(archive.zip, '0.1.0', 'MIT');
+  assert(contents['Hz Mixer.html']);
+  assert.equal(contents[portableDownloadName], undefined);
 });
 test('release packaging fails closed on unselected licensing, invalid versions or extra files', () => {
   assert.throws(() => createReleaseArchive(entries(), '0.1.0', 'UNLICENSED'), /licence/);
