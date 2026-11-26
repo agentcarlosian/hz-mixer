@@ -111,9 +111,13 @@ export class AudioEngine {
   }
   async play(mix) {
     const error = signalError(mix); if (error) throw new Error(error);
+    const playGeneration = ++this.generation;
+    this.stopGeneration++;
+    this.stopping = false;
     this.mix = structuredClone(mix); this.initialize();
     const contextError = signalError(mix, this.context.sampleRate); if (contextError) throw new Error(contextError);
     await this.context.resume();
+    if (playGeneration !== this.generation) return;
     const current = this.mix;
     const currentError = signalError(current, this.context.sampleRate); if (currentError) throw new Error(currentError);
     this.anchor = this.context.currentTime; this.playing = true; this.stopping = false;

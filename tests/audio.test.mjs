@@ -33,6 +33,32 @@ test('pending playback start uses and revalidates the latest authoritative setti
   }
 });
 
+test('play cancels an in-flight fade-out stop so restarted playback stays active', async () => {
+  const engine = new AudioEngine();
+  let paused = 0;
+  engine.initialize = () => {
+    engine.context = { sampleRate: 44100, currentTime: 1, resume: async () => {}, suspend: async () => { paused++; } };
+    engine.transport = { gain: { value: 1, cancelScheduledValues() {}, setValueAtTime() {}, linearRampToValueAtTime() {} } };
+  };
+  engine.rebuildTone = () => {};
+  engine.rescheduleEnvelope = () => {};
+  engine.update = (mix) => { engine.mix = structuredClone(mix); };
+
+  const mix = defaultMix();
+  mix.fades.out = 0.05;
+  await engine.play(mix);
+  assert.equal(engine.playing, true);
+
+  const stopping = engine.stop(false);
+  assert.equal(engine.stopping, true);
+  await engine.play(mix);
+  await stopping;
+
+  assert.equal(engine.playing, true);
+  assert.equal(engine.stopping, false);
+  assert.equal(paused, 0);
+});
+
 test('matching-time PCM overlap preserves stereo, endpoints, sample count and input tails', () => {
   const channels = [Float32Array.of(1, 1, 1, 1, .25), Float32Array.of(-1, -1, -1, -1, -.25)];
   const previous = [Float32Array.of(0, .1, .2, .3), Float32Array.of(0, -.1, -.2, -.3)], copy = previous.map((channel) => channel.slice());
