@@ -52,6 +52,8 @@ const server = createServer(async (request, response) => {
       "Content-Type": types[extname(target)] || "application/octet-stream",
       "Content-Length": body.length,
       "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "no-referrer",
     });
     response.end(request.method === "HEAD" ? undefined : body);
   } catch {

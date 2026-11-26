@@ -55,6 +55,7 @@ export async function renderStandaloneHtml() {
   if (/<\/script/i.test(encoder)) throw new Error('Encoder cannot safely be embedded without changing it.');
   new Script(encoder, { filename: 'mp3-encoder' });
   let html = stampVersion(await read('index.html'));
+  html = replaceOnce(html, "connect-src 'self';", "connect-src 'none';");
   html = replaceOnce(html, '<!-- embedded-guide -->', await guideMarkup(true));
   html = replaceOnce(html, 'href="./guide.html" target="_blank" rel="noopener"', 'href="#guide"');
   html = replaceOnce(html, '<link rel="stylesheet" href="./styles.css" />', '<style>' + await read('styles.css') + '</style>');

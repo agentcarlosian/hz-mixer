@@ -42,7 +42,7 @@ export async function guidePage() {
   const source = await read('index.html');
   const bootstrap = source.match(/<script id="theme-bootstrap">[\s\S]*?<\/script>/)?.[0];
   if (!bootstrap) throw new Error('Missing shared theme bootstrap.');
-  return '<!doctype html>\n<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="theme-color" content="#f5f7f6" /><meta name="application-version" content="' + metadata.version + '" /><meta name="description" content="The complete Hz Mixer guide: listening safety, audio controls, programs, mixing, backups and export." /><title>Hz Mixer Guide</title>'
+  return '<!doctype html>\n<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data:; font-src \'self\' data:; object-src \'none\'; base-uri \'none\';" /><meta name="theme-color" content="#f5f7f6" /><meta name="application-version" content="' + metadata.version + '" /><meta name="description" content="The complete Hz Mixer guide: listening safety, audio controls, programs, mixing, backups and export." /><title>Hz Mixer Guide</title>'
     + bootstrap + '<link rel="icon" href="./assets/icons/mixer-waves.svg" /><link rel="stylesheet" href="./styles.css" /></head><body>' + await guideMarkup()
     + '<script id="guide-theme">const media = matchMedia("(prefers-color-scheme: dark)"); media.addEventListener("change", () => window.hzMixerTheme.apply(document.documentElement.dataset.themePreference, media.matches));</script></body></html>\n';
 }
